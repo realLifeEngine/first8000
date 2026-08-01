@@ -85,33 +85,9 @@ import Dropdown from 'primevue/dropdown'
 import Textarea from 'primevue/textarea'
 import ProgressBar from 'primevue/progressbar'
 import { useToast } from 'primevue/usetoast'
-import { workPlans as workPlansApi, notices as noticesApi } from '../api/oa'
-import { createStudent } from '../api/students'
+import { workPlans, notices, revenueTrend, attendanceTrend, businessStatuses } from '../data/mockData'
 const toast = useToast()
-const statuses = ['意向', '正常', '停课', '结课', '流失']
-const workPlans = ref([])
-const notices = ref([])
-// No revenue/attendance time-series endpoint exists yet on the backend;
-// these charts remain illustrative until Batch 8 adds a reporting API.
-const revenueTrend = [
-  { month: '1月', revenue: 210000 }, { month: '2月', revenue: 198000 }, { month: '3月', revenue: 245000 },
-  { month: '4月', revenue: 267000 }, { month: '5月', revenue: 289000 }, { month: '6月', revenue: 328940 },
-]
-const attendanceTrend = [92, 88, 95, 90, 93, 85, 91]
-
-async function fetchDashboardData() {
-  try {
-    const [plansRes, noticesRes] = await Promise.all([
-      workPlansApi.list({ page: 1, page_size: 10 }),
-      noticesApi.list({ page: 1, page_size: 10 }),
-    ])
-    workPlans.value = plansRes.items
-    notices.value = noticesRes.items
-  } catch (err) {
-    toast.add({ severity: 'error', summary: '加载失败', detail: '无法获取仪表盘数据', life: 3000 })
-  }
-}
-fetchDashboardData()
+const statuses = businessStatuses
 const revenueChartEl = ref(null)
 const attendanceChartEl = ref(null)
 const showAddStudent = ref(false)
@@ -122,15 +98,10 @@ function openPlan(p) { activePlan.value = p; showPlanDialog.value = true }
 const showNoticeDialog = ref(false)
 const activeNotice = ref(null)
 function openNotice(n) { activeNotice.value = n; showNoticeDialog.value = true }
-async function confirmAddStudent() {
-  try {
-    await createStudent(newStudent.value)
-    showAddStudent.value = false
-    toast.add({ severity: 'success', summary: '添加成功', detail: `学员 ${newStudent.value.name || '新学员'} 已加入系统`, life: 3000 })
-    newStudent.value = { name: '', gender: '男', age: 8, status: '意向', phone: '', remark: '' }
-  } catch (err) {
-    toast.add({ severity: 'error', summary: '添加失败', detail: err.response?.data?.detail || '请稍后重试', life: 3000 })
-  }
+function confirmAddStudent() {
+  showAddStudent.value = false
+  toast.add({ severity: 'success', summary: '添加成功', detail: `学员 ${newStudent.value.name || '新学员'} 已加入系统`, life: 3000 })
+  newStudent.value = { name: '', gender: '男', age: 8, status: '意向', phone: '', remark: '' }
 }
 function exportReport() { toast.add({ severity: 'info', summary: '导出中', detail: '报表已生成，正在下载...', life: 2500 }) }
 function renderCharts() {

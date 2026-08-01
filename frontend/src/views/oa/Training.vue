@@ -20,15 +20,8 @@ import { Star } from 'lucide-vue-next'
 import PageHeader from '../../components/PageHeader.vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
-import { training } from '../../api/oa'
-const list = ref([])
-
-async function fetchTraining() {
-  const res = await training.list({ page: 1, page_size: 100 })
-  // Backend returns snake_case (update_time); adapt to the template's camelCase field.
-  list.value = res.items.map(item => ({ ...item, updateTime: item.update_time }))
-}
-fetchTraining()
+import { teamLibrary } from '../../data/mockData'
+const list = ref([...teamLibrary])
 const showDetail = ref(false)
 const active = ref(null)
 function openDetail(t) { active.value = t; showDetail.value = true }

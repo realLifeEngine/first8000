@@ -39,36 +39,16 @@ import Rating from 'primevue/rating'
 import Textarea from 'primevue/textarea'
 import InputText from 'primevue/inputtext'
 import { useToast } from 'primevue/usetoast'
-import { listCourseRecords, submitCourseReview } from '../../api/school'
+import { courseRecords } from '../../data/mockData'
 const toast = useToast()
-const list = ref([])
+const list = ref([...courseRecords])
 const mode = ref('pending')
-
-async function fetchRecords() {
-  try {
-    const res = await listCourseRecords({ page: 1, page_size: 100 })
-    list.value = res.items
-  } catch (err) {
-    toast.add({ severity: 'error', summary: '加载失败', detail: '无法获取教课记录', life: 3000 })
-  }
-}
-fetchRecords()
 const pending = computed(() => list.value.filter(r => r.status === '待评'))
 const done = computed(() => list.value.filter(r => r.status === '已评'))
 const showReview = ref(false)
 const reviewing = ref(null)
 function openReview(row) { reviewing.value = row; showReview.value = true }
-async function submitReview() {
-  try {
-    const updated = await submitCourseReview(reviewing.value.id, { rating: reviewing.value.rating, comment: reviewing.value.comment })
-    const idx = list.value.findIndex(r => r.id === updated.id)
-    if (idx > -1) list.value[idx] = updated
-    showReview.value = false
-    toast.add({ severity: 'success', summary: '点评已提交', detail: `${reviewing.value.student} 的课堂点评已完成`, life: 3000 })
-  } catch (err) {
-    toast.add({ severity: 'error', summary: '提交失败', detail: err.response?.data?.detail || '请稍后重试', life: 3000 })
-  }
-}
+function submitReview() { reviewing.value.status = '已评'; showReview.value = false; toast.add({ severity: 'success', summary: '点评已提交', detail: `${reviewing.value.student} 的课堂点评已完成`, life: 3000 }) }
 const showFilter = ref(false)
 const filterName = ref('')
 const filterTeacher = ref('')

@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="课程管理" crumb="教务管理 > 课程管理" subtitle="课程产品目录与教学内容维护">
-      <template #actions><Button v-if="auth.can('course_product:manage')" label="新增课程" icon="pi pi-plus" @click="openCreate" /></template>
+      <template #actions><Button label="新增课程" icon="pi pi-plus" @click="openCreate" /></template>
     </PageHeader>
     <div class="grid-cards">
       <div v-for="c in list" :key="c.id" class="course-card" @click="openDetail(c)">
@@ -43,21 +43,9 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Rating from 'primevue/rating'
 import { useToast } from 'primevue/usetoast'
-import { listCourseProducts, createCourseProduct, updateCourseProduct } from '../../api/school'
-import { useAuthStore } from '../../stores/auth'
+import { courseProducts, nextId } from '../../data/mockData'
 const toast = useToast()
-const auth = useAuthStore()
-const list = ref([])
-
-async function fetchProducts() {
-  try {
-    const res = await listCourseProducts({ page: 1, page_size: 100 })
-    list.value = res.items
-  } catch (err) {
-    toast.add({ severity: 'error', summary: '加载失败', detail: '无法获取课程列表', life: 3000 })
-  }
-}
-fetchProducts()
+const list = ref([...courseProducts])
 const showDetail = ref(false)
 const activeCourse = ref(null)
 function openDetail(c) { activeCourse.value = c; showDetail.value = true }
@@ -67,22 +55,10 @@ const editing = ref(false)
 const form = ref({ name: '', product: '', difficulty: 3, version: 'v1.0', info: '', goal: '' })
 function openCreate() { editing.value = false; form.value = { name: '', product: '', difficulty: 3, version: 'v1.0', info: '', goal: '' }; showEditor.value = true }
 function openEdit(row) { editing.value = true; form.value = { ...row }; showEditor.value = true }
-async function save() {
-  try {
-    if (editing.value) {
-      const updated = await updateCourseProduct(form.value.id, form.value)
-      const idx = list.value.findIndex(c => c.id === form.value.id)
-      if (idx > -1) list.value[idx] = updated
-      toast.add({ severity: 'success', summary: '更新成功', life: 2500 })
-    } else {
-      const created = await createCourseProduct(form.value)
-      list.value.unshift(created)
-      toast.add({ severity: 'success', summary: '新增成功', life: 2500 })
-    }
-    showEditor.value = false
-  } catch (err) {
-    toast.add({ severity: 'error', summary: '操作失败', detail: err.response?.data?.detail || '请稍后重试', life: 3000 })
-  }
+function save() {
+  if (editing.value) { const idx = list.value.findIndex(c => c.id === form.value.id); if (idx > -1) list.value[idx] = { ...list.value[idx], ...form.value }; toast.add({ severity: 'success', summary: '更新成功', life: 2500 }) }
+  else { list.value.unshift({ ...form.value, id: nextId(), seq: list.value.length + 1 }); toast.add({ severity: 'success', summary: '新增成功', life: 2500 }) }
+  showEditor.value = false
 }
 </script>
 <style scoped>

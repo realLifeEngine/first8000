@@ -3,7 +3,7 @@
     <PageHeader title="会员管理" crumb="前台业务 > 会员管理" subtitle="学员全生命周期信息与业务指标">
       <template #actions>
         <Button label="高级搜索" icon="pi pi-filter" outlined @click="showFilter = true" />
-        <Button v-if="auth.can('student:create')" label="新增学员" icon="pi pi-plus" @click="openCreate" />
+        <Button label="新增学员" icon="pi pi-plus" @click="openCreate" />
       </template>
     </PageHeader>
     <div class="toolbar">
@@ -27,8 +27,8 @@
         <Column header="管理" style="width:110px">
           <template #body="{ data }">
             <div class="row-actions" @click.stop>
-              <button v-if="auth.can('student:edit')" class="icon-action" @click="openEdit(data)" aria-label="编辑"><Pencil :size="15" /></button>
-              <button v-if="auth.can('student:delete')" class="icon-action danger" @click="confirmDelete(data)" aria-label="删除"><Trash2 :size="15" /></button>
+              <button class="icon-action" @click="openEdit(data)" aria-label="编辑"><Pencil :size="15" /></button>
+              <button class="icon-action danger" @click="confirmDelete(data)" aria-label="删除"><Trash2 :size="15" /></button>
             </div>
           </template>
         </Column>
@@ -116,27 +116,11 @@ import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
-import { listStudents, createStudent, updateStudent, deleteStudent } from '../../api/students'
-import { useAuthStore } from '../../stores/auth'
+import { students as seedStudents, businessStatuses, nextId } from '../../data/mockData'
 const toast = useToast()
 const confirm = useConfirm()
-const auth = useAuthStore()
-const statuses = ['意向', '正常', '停课', '结课', '流失']
-const list = ref([])
-const loading = ref(false)
-
-async function fetchStudents() {
-  loading.value = true
-  try {
-    const res = await listStudents({ page: 1, page_size: 100 })
-    list.value = res.items
-  } catch (err) {
-    toast.add({ severity: 'error', summary: '加载失败', detail: '无法获取学员列表', life: 3000 })
-  } finally {
-    loading.value = false
-  }
-}
-fetchStudents()
+const statuses = businessStatuses
+const list = ref([...seedStudents])
 const search = ref('')
 const statusFilter = ref('全部')
 const filtered = computed(() => list.value.filter(s => (statusFilter.value === '全部' || s.status === statusFilter.value) && (!search.value || s.name.includes(search.value))))
@@ -147,34 +131,20 @@ const editing = ref(false)
 const form = ref({ name: '', gender: '男', age: 8, status: '意向', classInfo: '', counselor: '', phone: '', remark: '' })
 function openCreate() { editing.value = false; form.value = { name: '', gender: '男', age: 8, status: '意向', classInfo: '', counselor: '', phone: '', remark: '' }; showEditor.value = true }
 function openEdit(row) { editing.value = true; form.value = { ...row }; showEditor.value = true }
-async function saveStudent() {
-  try {
-    if (editing.value) {
-      const updated = await updateStudent(form.value.id, form.value)
-      const idx = list.value.findIndex(s => s.id === form.value.id)
-      if (idx > -1) list.value[idx] = updated
-      toast.add({ severity: 'success', summary: '更新成功', detail: `${form.value.name} 的信息已更新`, life: 3000 })
-    } else {
-      const created = await createStudent(form.value)
-      list.value.unshift(created)
-      toast.add({ severity: 'success', summary: '新增成功', detail: `已添加学员 ${form.value.name}`, life: 3000 })
-    }
-    showEditor.value = false
-  } catch (err) {
-    toast.add({ severity: 'error', summary: '操作失败', detail: err.response?.data?.detail || '请稍后重试', life: 3000 })
+function saveStudent() {
+  if (editing.value) {
+    const idx = list.value.findIndex(s => s.id === form.value.id)
+    if (idx > -1) list.value[idx] = { ...list.value[idx], ...form.value }
+    toast.add({ severity: 'success', summary: '更新成功', detail: `${form.value.name} 的信息已更新`, life: 3000 })
+  } else {
+    list.value.unshift({ ...form.value, id: nextId(), totalPaid: '0', consumed: 0, absence: 0, onTimeRate: '0%', lastConsume: '-', consumeFreq: '-', reviewViews: 0, viewRate: '0%', lastContact: '-', nextContact: '-', regular: 0, gift: 0, other: 0, stored: '0' })
+    toast.add({ severity: 'success', summary: '新增成功', detail: `已添加学员 ${form.value.name}`, life: 3000 })
   }
+  showEditor.value = false
 }
 function confirmDelete(row) {
   confirm.require({ message: `确定要删除学员「${row.name}」吗？此操作无法撤销。`, header: '删除确认', icon: 'pi pi-exclamation-triangle', acceptLabel: '删除', rejectLabel: '取消', acceptClass: 'p-button-danger',
-    accept: async () => {
-      try {
-        await deleteStudent(row.id)
-        list.value = list.value.filter(s => s.id !== row.id)
-        toast.add({ severity: 'warn', summary: '已删除', detail: `学员 ${row.name} 已被移除`, life: 3000 })
-      } catch (err) {
-        toast.add({ severity: 'error', summary: '删除失败', detail: err.response?.data?.detail || '请稍后重试', life: 3000 })
-      }
-    } })
+    accept: () => { list.value = list.value.filter(s => s.id !== row.id); toast.add({ severity: 'warn', summary: '已删除', detail: `学员 ${row.name} 已被移除`, life: 3000 }) } })
 }
 const showDetail = ref(false)
 const activeStudent = ref(null)

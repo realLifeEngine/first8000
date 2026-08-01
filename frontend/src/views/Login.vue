@@ -1,97 +1,71 @@
-<!--
-  views/Login.vue
-  Login screen: replaces any hardcoded/mock session with a real call to
-  POST /auth/login via the Pinia auth store. On success, redirects to the
-  originally requested route (or /app/overview) and lands with the user's
-  resolved permissions already loaded for immediate UI gating.
--->
 <template>
   <div class="login-page">
-    <div class="login-card">
-      <h1>启慧教育管理后台</h1>
-      <form @submit.prevent="handleSubmit">
+    <div class="login-panel">
+      <div class="brand">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-label="启慧教育Logo">
+          <rect width="40" height="40" rx="10" fill="var(--color-primary)"/>
+          <path d="M12 26 L20 12 L28 26" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="20" cy="26" r="2.5" fill="white"/>
+        </svg>
+        <h1>启慧教育 CRM</h1>
+      </div>
+      <p class="tagline">连接教务、行政与数据，一站式教育机构运营中枢</p>
+      <ul class="feature-list" role="list">
+        <li>会员全生命周期精细化管理</li>
+        <li>教务排课与消课点评一体化</li>
+        <li>行政办公与业绩数据实时联动</li>
+      </ul>
+    </div>
+    <div class="form-panel">
+      <div class="form-card">
+        <h2>登录控制台</h2>
+        <p class="muted">使用您的账号密码登录系统</p>
         <div class="field">
-          <label for="username">用户名</label>
-          <InputText id="username" v-model="username" autocomplete="username" :disabled="loading" />
+          <label for="u">用户名</label>
+          <InputText id="u" v-model="username" placeholder="请输入用户名" @keyup.enter="login" />
         </div>
         <div class="field">
-          <label for="password">密码</label>
-          <Password id="password" v-model="password" :feedback="false" toggleMask autocomplete="current-password" :disabled="loading" />
+          <label for="p">密码</label>
+          <Password id="p" v-model="password" placeholder="请输入密码" :feedback="false" toggleMask @keyup.enter="login" />
         </div>
-        <Message v-if="errorMessage" severity="error" :closable="false">{{ errorMessage }}</Message>
-        <Button type="submit" label="登录" class="w-full" :loading="loading" />
-      </form>
+        <Button label="登 录" class="login-btn" @click="login" />
+        <p class="hint">演示环境：任意用户名密码即可登录</p>
+      </div>
     </div>
   </div>
 </template>
-
 <script setup>
-import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
-import Message from 'primevue/message'
-import { useAuthStore } from '../stores/auth'
-
+const router = useRouter()
 const username = ref('')
 const password = ref('')
-const loading = ref(false)
-const errorMessage = ref('')
-
-const auth = useAuthStore()
-const router = useRouter()
-const route = useRoute()
-
-async function handleSubmit() {
-  errorMessage.value = ''
-  loading.value = true
-  try {
-    await auth.login(username.value, password.value)
-    const redirectTo = route.query.redirect || '/app/overview'
-    router.push(redirectTo)
-  } catch (err) {
-    const detail = err.response?.data?.detail
-    if (err.response?.status === 423) {
-      errorMessage.value = '账户已被锁定，请稍后再试'
-    } else if (err.response?.status === 401) {
-      errorMessage.value = '用户名或密码错误'
-    } else {
-      errorMessage.value = detail || '登录失败，请稍后重试'
-    }
-  } finally {
-    loading.value = false
-  }
-}
+function login() { router.push('/app/overview') }
+onMounted(() => {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light')
+})
 </script>
-
 <style scoped>
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-ground, #f4f6f8);
-}
-.login-card {
-  width: 360px;
-  padding: 2rem;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-}
-.login-card h1 {
-  font-size: 1.25rem;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-.field {
-  margin-bottom: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-.w-full {
-  width: 100%;
-}
+.login-page { display: grid; grid-template-columns: 1fr; min-height: 100dvh; }
+@media (min-width: 900px) { .login-page { grid-template-columns: 1.1fr 1fr; } }
+.login-panel { background: linear-gradient(160deg, var(--color-primary-active), var(--color-primary)); color: #fff; padding: var(--space-16) var(--space-10); display: none; flex-direction: column; justify-content: center; gap: var(--space-6); }
+@media (min-width: 900px) { .login-panel { display: flex; } }
+.brand { display: flex; align-items: center; gap: var(--space-3); }
+.brand h1 { font-size: var(--text-lg); font-weight: 700; }
+.tagline { font-size: var(--text-lg); font-weight: 500; max-width: 28ch; }
+.feature-list { display: flex; flex-direction: column; gap: var(--space-3); font-size: var(--text-sm); opacity: 0.9; }
+.feature-list li::before { content: '✓ '; margin-right: var(--space-1); }
+.form-panel { display: flex; align-items: center; justify-content: center; padding: var(--space-8); }
+.form-card { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: var(--space-4); }
+.form-card h2 { font-size: var(--text-xl); }
+.muted { color: var(--color-text-muted); font-size: var(--text-sm); margin-bottom: var(--space-2); }
+.field { display: flex; flex-direction: column; gap: var(--space-2); }
+.field label { font-size: var(--text-sm); color: var(--color-text-muted); }
+.login-btn { margin-top: var(--space-2); height: 44px; }
+.hint { font-size: var(--text-xs); color: var(--color-text-faint); text-align: center; margin-top: var(--space-2); }
+:deep(.p-password input) { width: 100%; }
 </style>
