@@ -3,10 +3,11 @@
  * Office/OA module — thin wrappers for all 12 OA entities.
  */
 import client from './client'
+import { normalizeListResponse } from './response'
 
 function makeCrud(path) {
   return {
-    list: (params = {}) => client.get(`/oa/${path}`, { params }).then((r) => r.data),
+    list: (params = {}) => client.get(`/oa/${path}`, { params }).then((r) => normalizeListResponse(r.data)),
     create: (payload) => client.post(`/oa/${path}`, payload).then((r) => r.data),
     update: (id, payload) => client.put(`/oa/${path}/${id}`, payload).then((r) => r.data),
     remove: (id) => client.delete(`/oa/${path}/${id}`),

@@ -14,11 +14,28 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Building2 } from 'lucide-vue-next'
 import PageHeader from '../../components/PageHeader.vue'
-import { campusRevenue } from '../../data/mockData'
-const list = ref([...campusRevenue])
+import { useToast } from 'primevue/usetoast'
+import { listRevenue } from '../../api/datacenter'
+const toast = useToast()
+const list = ref([])
+const loading = ref(false)
+
+async function loadCampusData() {
+  loading.value = true
+  try {
+    const data = await listRevenue()
+    list.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadCampusData())
 </script>
 <style scoped>
 .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-4); }

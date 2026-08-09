@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="工作报告" crumb="办公OA > 工作报告" subtitle="查看团队周报、月报与专项报告">
-      <template #actions><Button label="提交报告" icon="pi pi-plus" @click="openCreate" /></template>
+      <template #actions><Button v-if="auth.can('report:create')" label="提交报告" icon="pi pi-plus" @click="openCreate" /></template>
     </PageHeader>
     <div class="table-card">
       <DataTable :value="list" paginator :rows="10" dataKey="id" responsiveLayout="scroll" stripedRows removableSort>
@@ -26,7 +26,7 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import PageHeader from '../../components/PageHeader.vue'
 import StatusTag from '../../components/StatusTag.vue'
 import RecordDialog from '../../components/RecordDialog.vue'
@@ -38,16 +38,44 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
-import { workReports, nextId } from '../../data/mockData'
+import { workReports } from '../../api/oa'
+import { useAuthStore } from '../../stores/auth'
 const toast = useToast()
-const list = ref([...workReports])
+const auth = useAuthStore()
+const list = ref([])
+const loading = ref(false)
 const showDetail = ref(false)
 const active = ref(null)
 function openDetail(row) { active.value = row; showDetail.value = true }
 const showEditor = ref(false)
 const form = ref({ category: '周报', dept: '', title: '', content: '' })
+
+async function loadWorkReports() {
+  loading.value = true
+  try {
+    const data = await workReports.list()
+    list.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadWorkReports())
+
 function openCreate() { form.value = { category: '周报', dept: '', title: '', content: '' }; showEditor.value = true }
-function save() { list.value.unshift({ ...form.value, id: nextId(), submitter: '管理员', time: new Date().toISOString().slice(0,10), read: '未读' }); toast.add({ severity: 'success', summary: '提交成功', life: 2500 }); showEditor.value = false }
+
+async function save() {
+  try {
+    await workReports.create(form.value)
+    await loadWorkReports()
+    toast.add({ severity: 'success', summary: '提交成功', life: 2500 })
+    showEditor.value = false
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '提交失败', detail: e.message, life: 3000 })
+  }
+}
 </script>
 <style scoped>
 .table-card { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }

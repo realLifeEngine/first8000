@@ -273,3 +273,8 @@ class OperationLogBase(BaseModel):
 class OperationLogOut(OperationLogBase, TimestampOut):
     id: str
     branch_id: str
+
+
+class OperationLogViewOut(OperationLogOut):
+    actor_name: str | None = None
+    actor_role: str | None = None

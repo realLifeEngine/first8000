@@ -7,7 +7,7 @@
         <Column field="status" header="业务状态"><template #body="{ data }"><StatusTag :value="data.status" /></template></Column>
         <Column v-for="(d,i) in days" :key="d" :header="d" style="width:56px"><template #body="{ data }"><span class="tabular day-cell">{{ data.week[i] }}</span></template></Column>
         <Column field="regular" header="常规" /><Column field="review" header="点评" /><Column field="pending" header="待补" /><Column field="dept" header="业务部门" />
-        <Column header="操作" style="width:90px"><template #body="{ data }"><Button label="查看" size="small" text @click="openDetail(data)" /></template></Column>
+        <Column header="操作" style="width:100px"><template #body="{ data }"><Button label="查看" size="small" text @click="openDetail(data)" /></template></Column>
       </DataTable>
     </div>
     <Dialog v-model:visible="showDetail" modal header="出勤明细" :style="{width:'480px'}">
@@ -23,21 +23,38 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import PageHeader from '../../components/PageHeader.vue'
 import StatusTag from '../../components/StatusTag.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
-import { students } from '../../data/mockData'
+import { useToast } from 'primevue/usetoast'
+import { listStudents } from '../../api/students'
+const toast = useToast()
 const days = ['一','二','三','四','五','六','日']
-const list = ref(students.slice(0, 20).map((s, i) => ({
-  id: s.id, name: s.name, status: s.status,
-  week: Array.from({length:7}, () => (Math.random() > 0.3 ? '✓' : '-')),
-  regular: Math.floor(Math.random()*10), review: Math.floor(Math.random()*8),
-  pending: Math.floor(Math.random()*3), dept: i % 2 === 0 ? '总校区' : '分校区A',
-})))
+const list = ref([])
+const loading = ref(false)
+
+async function loadAttendanceStats() {
+  loading.value = true
+  try {
+    const students = await listStudents()
+    list.value = students.slice(0, 20).map((s, i) => ({
+      id: s.id, name: s.name, status: s.status,
+      week: Array.from({length:7}, () => (Math.random() > 0.3 ? '✓' : '-')),
+      regular: Math.floor(Math.random()*10), review: Math.floor(Math.random()*8),
+      pending: Math.floor(Math.random()*3), dept: i % 2 === 0 ? '总校区' : '分校区A',
+    }))
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadAttendanceStats())
 const showDetail = ref(false)
 const active = ref(null)
 function openDetail(row) { active.value = row; showDetail.value = true }

@@ -33,7 +33,7 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { BookOpen } from 'lucide-vue-next'
 import PageHeader from '../../components/PageHeader.vue'
 import RecordDialog from '../../components/RecordDialog.vue'
@@ -43,9 +43,26 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Rating from 'primevue/rating'
 import { useToast } from 'primevue/usetoast'
-import { courseProducts, nextId } from '../../data/mockData'
+import { listCourseProducts, createCourseProduct, updateCourseProduct, deleteCourseProduct } from '../../api/school'
+import { useAuthStore } from '../../stores/auth'
 const toast = useToast()
-const list = ref([...courseProducts])
+const auth = useAuthStore()
+const list = ref([])
+const loading = ref(false)
+
+async function loadCourseProducts() {
+  loading.value = true
+  try {
+    const data = await listCourseProducts()
+    list.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadCourseProducts())
 const showDetail = ref(false)
 const activeCourse = ref(null)
 function openDetail(c) { activeCourse.value = c; showDetail.value = true }
@@ -55,10 +72,20 @@ const editing = ref(false)
 const form = ref({ name: '', product: '', difficulty: 3, version: 'v1.0', info: '', goal: '' })
 function openCreate() { editing.value = false; form.value = { name: '', product: '', difficulty: 3, version: 'v1.0', info: '', goal: '' }; showEditor.value = true }
 function openEdit(row) { editing.value = true; form.value = { ...row }; showEditor.value = true }
-function save() {
-  if (editing.value) { const idx = list.value.findIndex(c => c.id === form.value.id); if (idx > -1) list.value[idx] = { ...list.value[idx], ...form.value }; toast.add({ severity: 'success', summary: '更新成功', life: 2500 }) }
-  else { list.value.unshift({ ...form.value, id: nextId(), seq: list.value.length + 1 }); toast.add({ severity: 'success', summary: '新增成功', life: 2500 }) }
-  showEditor.value = false
+async function save() {
+  try {
+    if (editing.value) {
+      await updateCourseProduct(form.value.id, form.value)
+      toast.add({ severity: 'success', summary: '更新成功', life: 2500 })
+    } else {
+      await createCourseProduct(form.value)
+      toast.add({ severity: 'success', summary: '新增成功', life: 2500 })
+    }
+    await loadCourseProducts()
+    showEditor.value = false
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '保存失败', detail: e.message, life: 3000 })
+  }
 }
 </script>
 <style scoped>

@@ -30,13 +30,16 @@
             <Sun v-if="theme==='dark'" :size="18" />
             <Moon v-else :size="18" />
           </button>
-          <div class="user-chip" @click="showUserMenu = !showUserMenu">
-            <Avatar label="管" shape="circle" size="normal" />
-            <span class="user-name">管理员</span>
+          <div class="user-chip" @click.stop="toggleUserMenu">
+            <Avatar :label="userInitial" shape="circle" size="normal" />
+            <span class="user-name">{{ auth.user?.name || auth.user?.username || '用户' }}</span>
             <ChevronDown :size="14" />
           </div>
           <div v-if="showUserMenu" class="user-menu" v-click-outside>
-            <button @click="logout"><LogOut :size="15" /> 退出登录</button>
+            <button class="user-menu-item" @click.stop="handleLogout">
+              <LogOut :size="15" />
+              <span>退出登录</span>
+            </button>
           </div>
         </div>
       </header>
@@ -45,52 +48,92 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Menu, X, Sun, Moon, ChevronDown, LogOut, LayoutDashboard, Users, School, ClipboardList, Star, BookOpen, CalendarCheck, FileText, ListTodo, FileBarChart, Contact, DoorOpen, Package, Wallet, BookMarked, GraduationCap, FolderKanban, MessageSquare, History, TrendingUp, Trophy, Gift, Building2 } from 'lucide-vue-next'
+import { Menu, X, Sun, Moon, ChevronDown, LogOut, LayoutDashboard, Users, School, ClipboardList, Star, BookOpen, CalendarCheck, FileText, ListTodo, FileBarChart, Contact, DoorOpen, Package, Wallet, BookMarked, GraduationCap, FolderKanban, MessageSquare, History, TrendingUp, Trophy, Gift, Building2, Recycle } from 'lucide-vue-next'
 import Avatar from 'primevue/avatar'
+import { useAuthStore } from '../stores/auth'
+import { initTheme, setTheme } from '../utils/theme'
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const mobileOpen = ref(false)
 const showUserMenu = ref(false)
 const theme = ref(document.documentElement.getAttribute('data-theme') || 'light')
-function toggleTheme() { theme.value = theme.value === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', theme.value) }
-function logout() { showUserMenu.value = false; router.push('/login') }
+const userInitial = computed(() => {
+  const name = auth.user?.name || auth.user?.username || ''
+  return name.charAt(0)?.toUpperCase() || 'U'
+})
+function toggleTheme() {
+  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+  setTheme(theme.value)
+}
+function toggleUserMenu() {
+  showUserMenu.value = !showUserMenu.value
+}
+function handleLogout(event) {
+  event?.stopPropagation?.()
+  showUserMenu.value = false
+  auth.logout()
+  router.push('/login')
+}
+onMounted(() => {
+  theme.value = initTheme('light')
+})
 const vClickOutside = { mounted(el) {
   el._outsideHandler = (e) => { if (!el.contains(e.target)) showUserMenu.value = false }
   document.addEventListener('click', el._outsideHandler)
 }, unmounted(el) { document.removeEventListener('click', el._outsideHandler) } }
-const nav = [
-  { label: '总览', items: [ { to: '/app/overview', label: '仪表盘', icon: LayoutDashboard } ] },
-  { label: '前台业务', items: [ { to: '/app/frontdesk/members', label: '会员管理', icon: Users } ] },
-  { label: '教务管理', items: [
-    { to: '/app/school/class', label: '班级管理', icon: School },
-    { to: '/app/school/course-records', label: '教课记录', icon: ClipboardList },
-    { to: '/app/school/course-review', label: '课堂点评', icon: Star },
-    { to: '/app/school/course-products', label: '课程管理', icon: BookOpen },
-    { to: '/app/school/attendance', label: '出勤统计', icon: CalendarCheck },
-  ] },
-  { label: '办公OA', items: [
-    { to: '/app/oa/notices', label: '内部公文', icon: FileText },
-    { to: '/app/oa/plans', label: '工作计划', icon: ListTodo },
-    { to: '/app/oa/reports', label: '工作报告', icon: FileBarChart },
-    { to: '/app/oa/contacts', label: '通讯录', icon: Contact },
-    { to: '/app/oa/goout', label: '请假条', icon: DoorOpen },
-    { to: '/app/oa/property', label: '资产管理', icon: Package },
-    { to: '/app/oa/wage', label: '工资明细', icon: Wallet },
-    { to: '/app/oa/knowledge', label: '知识库', icon: BookMarked },
-    { to: '/app/oa/training', label: '内部培训', icon: GraduationCap },
-    { to: '/app/oa/documents', label: '文件柜', icon: FolderKanban },
-    { to: '/app/oa/messages', label: '站内短信', icon: MessageSquare },
-    { to: '/app/oa/logs', label: '操作记录', icon: History },
-  ] },
-  { label: '数据中心', items: [
-    { to: '/app/data/revenue', label: '业绩统计', icon: TrendingUp },
-    { to: '/app/data/ranking', label: '人员排名', icon: Trophy },
-    { to: '/app/data/bonus', label: '奖金汇总', icon: Gift },
-    { to: '/app/data/campus', label: '校区数据', icon: Building2 },
-  ] },
-]
+const nav = computed(() => {
+  const groups = [
+    { label: '总览', items: [ { to: '/app/overview', label: '仪表盘', icon: LayoutDashboard } ] },
+    { label: '前台业务', items: [ { to: '/app/frontdesk/members', label: '学生管理', icon: Users } ] },
+    { label: '教务管理', items: [
+      { to: '/app/school/class', label: '班级管理', icon: School },
+      { to: '/app/school/course-records', label: '教课记录', icon: ClipboardList },
+      { to: '/app/school/course-review', label: '课堂点评', icon: Star },
+      { to: '/app/school/course-products', label: '课程管理', icon: BookOpen },
+      { to: '/app/school/attendance', label: '出勤统计', icon: CalendarCheck },
+      { to: '/app/school/public_field', label: '公海', icon: Recycle },
+    ] },
+  ]
+
+  const adminItems = []
+  if (auth.hasRoleAtLeast('school_admin')) {
+    adminItems.push({ to: '/app/admin/staff', label: '员工管理', icon: Users })
+  }
+  if (auth.hasRoleAtLeast('superuser')) {
+    adminItems.push({ to: '/app/admin/branches', label: '校区管理', icon: Building2 })
+  }
+  if (adminItems.length) {
+    groups.push({ label: '系统管理', items: adminItems })
+  }
+
+  groups.push(
+    { label: '办公OA', items: [
+      { to: '/app/oa/notices', label: '内部公文', icon: FileText },
+      { to: '/app/oa/plans', label: '工作计划', icon: ListTodo },
+      { to: '/app/oa/reports', label: '工作报告', icon: FileBarChart },
+      { to: '/app/oa/contacts', label: '通讯录', icon: Contact },
+      { to: '/app/oa/goout', label: '请假条', icon: DoorOpen },
+      { to: '/app/oa/property', label: '资产管理', icon: Package },
+      { to: '/app/oa/wage', label: '工资明细', icon: Wallet },
+      { to: '/app/oa/knowledge', label: '知识库', icon: BookMarked },
+      { to: '/app/oa/training', label: '内部培训', icon: GraduationCap },
+      { to: '/app/oa/documents', label: '文件柜', icon: FolderKanban },
+      { to: '/app/oa/messages', label: '站内短信', icon: MessageSquare },
+      { to: '/app/oa/logs', label: '操作记录', icon: History },
+    ] },
+    { label: '数据中心', items: [
+      { to: '/app/data/revenue', label: '业绩统计', icon: TrendingUp },
+      { to: '/app/data/ranking', label: '人员排名', icon: Trophy },
+      { to: '/app/data/bonus', label: '奖金汇总', icon: Gift },
+      { to: '/app/data/campus', label: '校区数据', icon: Building2 },
+    ] },
+  )
+
+  return groups
+})
 </script>
 <style scoped>
 .shell { display: flex; min-height: 100dvh; }
@@ -120,8 +163,8 @@ const nav = [
 .user-chip:hover { background: var(--color-surface-offset); }
 .user-name { font-size: var(--text-sm); }
 .user-menu { position: absolute; top: 48px; right: 0; background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md); box-shadow: var(--shadow-md); min-width: 140px; overflow: hidden; }
-.user-menu button { display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: var(--space-3); font-size: var(--text-sm); }
-.user-menu button:hover { background: var(--color-surface-offset); }
+.user-menu-item { display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: var(--space-3); font-size: var(--text-sm); }
+.user-menu-item:hover { background: var(--color-surface-offset); }
 .content { padding: var(--space-6); flex: 1; max-width: var(--content-default); margin: 0 auto; width: 100%; }
 @media (max-width: 640px) { .content { padding: var(--space-4); } }
 </style>

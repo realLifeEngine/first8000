@@ -20,14 +20,33 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import PageHeader from '../../components/PageHeader.vue'
 import Avatar from 'primevue/avatar'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
-import { contacts } from '../../data/mockData'
+import { useToast } from 'primevue/usetoast'
+import { contacts as contactsApi } from '../../api/oa'
+const toast = useToast()
+const contacts = ref([])
+const loading = ref(false)
 const showDetail = ref(false)
 const active = ref(null)
+
+async function loadContacts() {
+  loading.value = true
+  try {
+    const data = await contactsApi.list()
+    contacts.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadContacts())
+
 function openDetail(c) { active.value = c; showDetail.value = true }
 </script>
 <style scoped>

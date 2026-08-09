@@ -13,7 +13,7 @@ const cls = computed(() => {
 })
 </script>
 <style scoped>
-.status-tag { display: inline-flex; align-items: center; padding: 2px var(--space-2); border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }
+.status-tag { display: inline-flex; align-items: center; padding: 12px var(--space-2); border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }
 .status-tag.positive { background: var(--color-success-highlight); color: var(--color-success); }
 .status-tag.warning { background: var(--color-warning-highlight); color: var(--color-warning); }
 .status-tag.negative { background: var(--color-error-highlight); color: var(--color-error); }

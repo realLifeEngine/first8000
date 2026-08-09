@@ -6,20 +6,25 @@ aggregation queries rather than dedicated tables.
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import require_permission
-from core.security import Permission
+from api.deps import get_current_active_user, require_permission
+from core.security import Permission, role_at_least
 from db.session import get_db
+from models.academic import CourseRecord
 from models.branch import Branch
 from models.datacenter import BonusRecord, CampusRevenue
+from models.student import Student
 from models.user import User
 from schemas.common import PageOut
 from schemas.datacenter import (
     BonusRecordCreate, BonusRecordOut, BonusSummaryRow,
     CampusRevenueCreate, CampusRevenueOut, RankingRow, StaffRankingRow,
+    OverviewSummary,
 )
 from services.crud import CRUDBase
 
@@ -27,6 +32,40 @@ router = APIRouter(prefix="/api/v1/data", tags=["data-center"])
 
 revenue_crud = CRUDBase(CampusRevenue)
 bonus_crud = CRUDBase(BonusRecord)
+
+
+@router.get("/overview-summary", response_model=OverviewSummary)
+async def overview_summary(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+) -> OverviewSummary:
+    branch_filter = None if role_at_least(user.role, "school_admin") else user.branch_id
+    month_period = datetime.now().strftime("%Y-%m")
+
+    students_query = select(
+        func.count(Student.id),
+        func.coalesce(func.avg(cast(func.replace(func.coalesce(Student.on_time_rate, "0"), "%", ""), Integer)), 0),
+    ).where(Student.status.in_(["正常", "停课"]))
+    if branch_filter is not None:
+        students_query = students_query.where(Student.branch_id == branch_filter)
+    active_students, weekly_attendance_rate = (await db.execute(students_query)).one()
+
+    revenue_query = select(func.coalesce(func.sum(CampusRevenue.revenue), 0)).where(CampusRevenue.period == month_period)
+    if branch_filter is not None:
+        revenue_query = revenue_query.where(CampusRevenue.branch_id == branch_filter)
+    monthly_revenue = (await db.execute(revenue_query)).scalar_one()
+
+    review_query = select(func.count(CourseRecord.id)).where(CourseRecord.status == "待评")
+    if branch_filter is not None:
+        review_query = review_query.where(CourseRecord.branch_id == branch_filter)
+    pending_reviews = (await db.execute(review_query)).scalar_one()
+
+    return OverviewSummary(
+        active_students=active_students or 0,
+        monthly_revenue=float(monthly_revenue or 0),
+        weekly_attendance_rate=round(float(weekly_attendance_rate or 0), 1),
+        pending_reviews=pending_reviews or 0,
+    )
 
 
 @router.get("/revenue", response_model=PageOut)

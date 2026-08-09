@@ -13,6 +13,7 @@ from slowapi.errors import RateLimitExceeded
 
 from core.config import settings
 from middleware.honeypot import HoneypotMiddleware
+from middleware.operation_audit import OperationAuditMiddleware
 from middleware.rate_limit import limiter
 from middleware.request_id import RequestIDMiddleware
 from middleware.security_headers import SecurityHeadersMiddleware
@@ -23,6 +24,7 @@ def setup_middleware(app: FastAPI) -> None:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     app.add_middleware(HoneypotMiddleware)
+    app.add_middleware(OperationAuditMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(

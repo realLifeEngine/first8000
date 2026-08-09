@@ -1,14 +1,14 @@
 <template>
   <div>
     <PageHeader title="请假条" crumb="办公OA > 请假条" subtitle="外出与请假申请审批记录">
-      <template #actions><Button label="新建申请" icon="pi pi-plus" @click="openCreate" /></template>
+      <template #actions><Button v-if="auth.can('leave:create')" label="新建申请" icon="pi pi-plus" @click="openCreate" /></template>
     </PageHeader>
     <div class="table-card">
       <DataTable :value="list" paginator :rows="10" dataKey="id" responsiveLayout="scroll" stripedRows removableSort>
         <Column field="applyDate" header="申请日期" sortable /><Column field="applicant" header="申请人" sortable /><Column field="type" header="类型" sortable /><Column field="reason" header="事由" />
         <Column field="outTime" header="外出时间" /><Column field="backTime" header="返回时间" /><Column field="absenceDays" header="缺勤天数" sortable />
         <Column field="audit" header="审批状态" sortable><template #body="{ data }"><StatusTag :value="data.audit" /></template></Column>
-        <Column header="管理" style="width:90px"><template #body="{ data }"><Button v-if="data.audit==='审批中'" label="批准" size="small" text @click="approve(data)" /></template></Column>
+        <Column header="管理" style="width:90px"><template #body="{ data }"><Button v-if="data.audit==='审批中' && auth.can('leave:approve')" label="批准" size="small" text @click="approve(data)" /></template></Column>
       </DataTable>
     </div>
     <RecordDialog v-model:visible="showEditor" title="新建请假/外出申请" width="600px" @confirm="save">
@@ -23,7 +23,7 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import PageHeader from '../../components/PageHeader.vue'
 import StatusTag from '../../components/StatusTag.vue'
 import RecordDialog from '../../components/RecordDialog.vue'
@@ -35,14 +35,51 @@ import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
-import { goOutRecords, nextId } from '../../data/mockData'
+import { leaveRequests } from '../../api/oa'
+import { useAuthStore } from '../../stores/auth'
 const toast = useToast()
-const list = ref([...goOutRecords])
+const auth = useAuthStore()
+const list = ref([])
+const loading = ref(false)
 const showEditor = ref(false)
 const form = ref({ type: '请假', absenceDays: 0.5, outTime: '', backTime: '', reason: '' })
+
+async function loadLeaveRequests() {
+  loading.value = true
+  try {
+    const data = await leaveRequests.list()
+    list.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadLeaveRequests())
+
 function openCreate() { form.value = { type: '请假', absenceDays: 0.5, outTime: '', backTime: '', reason: '' }; showEditor.value = true }
-function save() { list.value.unshift({ ...form.value, id: nextId(), applyDate: new Date().toISOString().slice(0,10), applicant: '管理员', audit: '审批中', auditTime: '-', auditor: '-', dept: '行政部', submitTime: new Date().toISOString().slice(0,10), detail: form.value.reason }); toast.add({ severity: 'success', summary: '申请已提交', life: 2500 }); showEditor.value = false }
-function approve(row) { row.audit = '已批准'; row.auditTime = new Date().toISOString().slice(0,10); row.auditor = '管理员'; toast.add({ severity: 'success', summary: '已批准', detail: `${row.applicant} 的申请已批准`, life: 2500 }) }
+
+async function save() {
+  try {
+    await leaveRequests.create(form.value)
+    await loadLeaveRequests()
+    toast.add({ severity: 'success', summary: '申请已提交', life: 2500 })
+    showEditor.value = false
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '申请失败', detail: e.message, life: 3000 })
+  }
+}
+
+async function approve(row) {
+  try {
+    await leaveRequests.approve(row.id, {})
+    await loadLeaveRequests()
+    toast.add({ severity: 'success', summary: '已批准', detail: `${row.applicant} 的申请已批准`, life: 2500 })
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '操作失败', detail: e.message, life: 3000 })
+  }
+}
 </script>
 <style scoped>
 .table-card { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }

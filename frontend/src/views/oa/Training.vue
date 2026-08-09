@@ -15,15 +15,33 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Star } from 'lucide-vue-next'
 import PageHeader from '../../components/PageHeader.vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
-import { teamLibrary } from '../../data/mockData'
-const list = ref([...teamLibrary])
+import { useToast } from 'primevue/usetoast'
+import { training } from '../../api/oa'
+const toast = useToast()
+const list = ref([])
+const loading = ref(false)
 const showDetail = ref(false)
 const active = ref(null)
+
+async function loadTraining() {
+  loading.value = true
+  try {
+    const data = await training.list()
+    list.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadTraining())
+
 function openDetail(t) { active.value = t; showDetail.value = true }
 </script>
 <style scoped>

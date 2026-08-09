@@ -15,16 +15,31 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import PageHeader from '../../components/PageHeader.vue'
 import StatusTag from '../../components/StatusTag.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
-import { bonusSummary } from '../../data/mockData'
+import { fetchBonusSummary } from '../../api/datacenter'
 const toast = useToast()
-const list = ref([...bonusSummary])
+const list = ref([])
+const loading = ref(false)
+
+async function loadBonusStats() {
+  loading.value = true
+  try {
+    const data = await fetchBonusSummary()
+    list.value = Array.isArray(data) ? data : data.data || []
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadBonusStats())
 function payAll() { list.value.forEach(r => r.status = '已发放'); toast.add({ severity: 'success', summary: '发放完成', detail: '全部待发放奖金已标记发放', life: 2500 }) }
 </script>
 <style scoped>

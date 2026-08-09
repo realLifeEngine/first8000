@@ -6,6 +6,7 @@ these are service-layer aggregates, not direct table mirrors.
 """
 from __future__ import annotations
 
+from pydantic import ConfigDict
 from pydantic import BaseModel
 
 from schemas.common import TimestampOut, PayoutStatus
@@ -73,3 +74,12 @@ class BonusSummaryRow(BaseModel):
     performance_bonus: float
     total_bonus: float
     status: PayoutStatus
+
+
+class OverviewSummary(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    active_students: int
+    monthly_revenue: float
+    weekly_attendance_rate: float
+    pending_reviews: int

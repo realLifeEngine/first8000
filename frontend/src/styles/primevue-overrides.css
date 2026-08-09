@@ -6,6 +6,8 @@
 .p-paginator{background:var(--color-surface);color:var(--color-text-muted);border-color:var(--color-divider)}
 .p-button{background:var(--color-primary);border-color:var(--color-primary);border-radius:var(--radius-md)}
 .p-button:hover{background:var(--color-primary-hover)!important;border-color:var(--color-primary-hover)!important}
+.p-button .p-button-icon-left{margin-right:0.5rem}
+.p-button .p-button-icon-right{margin-left:0.5rem}
 .p-button.p-button-outlined{color:var(--color-primary);border-color:var(--color-primary)}
 .p-button.p-button-text{color:var(--color-primary)}
 .p-button.p-button-secondary{background:var(--color-surface-offset);border-color:var(--color-divider);color:var(--color-text)}
@@ -26,3 +28,6 @@
 .p-avatar{background:var(--color-primary-highlight);color:var(--color-primary)}
 .p-rating .p-rating-icon{color:var(--color-warning)}
 .p-confirm-dialog .p-dialog-content,.p-confirm-dialog .p-dialog-header{background:var(--color-surface);color:var(--color-text)}
+.p-button .p-button-label {color: white;}
+.p-button .p-button-icon-left {color: white;}
+.p-sortable-column-icon {padding-inline-start: 0.5rem;}

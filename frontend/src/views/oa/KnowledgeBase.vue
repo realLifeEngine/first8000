@@ -13,14 +13,32 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import PageHeader from '../../components/PageHeader.vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
-import { knowledgeBase } from '../../data/mockData'
-const list = ref([...knowledgeBase])
+import { useToast } from 'primevue/usetoast'
+import { knowledgeBase } from '../../api/oa'
+const toast = useToast()
+const list = ref([])
+const loading = ref(false)
 const showDetail = ref(false)
 const active = ref(null)
+
+async function loadKnowledgeBase() {
+  loading.value = true
+  try {
+    const data = await knowledgeBase.list()
+    list.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadKnowledgeBase())
+
 function openDetail(k) { active.value = k; showDetail.value = true }
 </script>
 <style scoped>

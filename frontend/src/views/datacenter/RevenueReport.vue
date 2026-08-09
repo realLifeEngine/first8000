@@ -21,7 +21,7 @@
   </div>
 </template>
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { TrendingUp, TrendingDown, Wallet, Users } from 'lucide-vue-next'
 import PageHeader from '../../components/PageHeader.vue'
 import KpiCard from '../../components/KpiCard.vue'
@@ -29,9 +29,24 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
-import { campusRevenue } from '../../data/mockData'
+import { listRevenue } from '../../api/datacenter'
 const toast = useToast()
-const list = ref([...campusRevenue])
+const list = ref([])
+const loading = ref(false)
+
+async function loadRevenue() {
+  loading.value = true
+  try {
+    const data = await listRevenue()
+    list.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadRevenue())
 const totalSign = computed(() => list.value.reduce((s, c) => s + Number(c.signAmount), 0))
 const totalRefund = computed(() => list.value.reduce((s, c) => s + Number(c.refundAmount), 0))
 const totalNet = computed(() => list.value.reduce((s, c) => s + Number(c.netAmount), 0))

@@ -7,18 +7,22 @@ dedicated PATCH action for submitting a course review (CourseReview.vue's
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_active_user, require_permission
 from core.security import Permission
 from db.session import get_db
-from models.academic import CourseProduct, CourseRecord, SchoolClass
+from models.academic import ClassStudentMembership, CourseProduct, CourseRecord, SchoolClass
+from models.student import Student
+from models.user import User
 from schemas.academic import (
     CourseProductCreate, CourseProductOut, CourseProductUpdate,
     CourseRecordCreate, CourseRecordOut, CourseReviewSubmit,
     SchoolClassCreate, SchoolClassOut, SchoolClassUpdate,
 )
 from schemas.common import PageOut
+from schemas.student import StudentOut
 from services.crud import CRUDBase
 
 router = APIRouter(prefix="/api/v1/school", tags=["school"])
@@ -26,6 +30,29 @@ router = APIRouter(prefix="/api/v1/school", tags=["school"])
 class_crud = CRUDBase(SchoolClass)
 product_crud = CRUDBase(CourseProduct)
 record_crud = CRUDBase(CourseRecord)
+
+
+async def _sync_class_enrolled(db: AsyncSession, class_id: str) -> None:
+    count_query = select(func.count()).select_from(ClassStudentMembership).where(ClassStudentMembership.class_id == class_id)
+    enrolled = (await db.execute(count_query)).scalar_one()
+    school_class = await class_crud.get(db, class_id)
+    school_class.enrolled = int(enrolled)
+
+
+async def _sync_student_class_info(db: AsyncSession, student_id: str) -> None:
+    student = await db.get(Student, student_id)
+    if student is None:
+        return
+    class_name = (
+        await db.execute(
+            select(SchoolClass.name)
+            .join(ClassStudentMembership, ClassStudentMembership.class_id == SchoolClass.id)
+            .where(ClassStudentMembership.student_id == student_id)
+            .order_by(desc(ClassStudentMembership.created_at))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    student.class_info = class_name
 
 
 # --- Classes ---
@@ -43,6 +70,107 @@ async def create_class(payload: SchoolClassCreate, db: AsyncSession = Depends(ge
 @router.put("/classes/{class_id}", response_model=SchoolClassOut)
 async def update_class(class_id: str, payload: SchoolClassUpdate, db: AsyncSession = Depends(get_db), _=Depends(require_permission(Permission.CLASS_MANAGE.value))) -> SchoolClassOut:
     return SchoolClassOut.model_validate(await class_crud.update(db, class_id, payload.model_dump(exclude_unset=True)))
+
+
+@router.get("/classes/{class_id}/students", response_model=list[StudentOut])
+async def list_class_students(
+    class_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_permission(Permission.CLASS_MANAGE.value)),
+) -> list[StudentOut]:
+    school_class = await class_crud.get(db, class_id)
+    query = (
+        select(Student)
+        .join(ClassStudentMembership, ClassStudentMembership.student_id == Student.id)
+        .where(ClassStudentMembership.class_id == school_class.id)
+        .order_by(desc(Student.created_at))
+    )
+    items = (await db.execute(query)).scalars().all()
+    return [StudentOut.model_validate(item) for item in items]
+
+
+@router.get("/classes/{class_id}/students/available", response_model=list[StudentOut])
+async def list_available_students_for_class(
+    class_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_permission(Permission.CLASS_MANAGE.value)),
+) -> list[StudentOut]:
+    school_class = await class_crud.get(db, class_id)
+    subquery = select(ClassStudentMembership.student_id).where(ClassStudentMembership.class_id == school_class.id)
+    query = (
+        select(Student)
+        .where(Student.branch_id == school_class.branch_id)
+        .where(Student.id.not_in(subquery))
+        .order_by(desc(Student.created_at))
+    )
+    items = (await db.execute(query)).scalars().all()
+    return [StudentOut.model_validate(item) for item in items]
+
+
+@router.post("/classes/{class_id}/students/{student_id}", status_code=200)
+async def assign_student_to_class(
+    class_id: str,
+    student_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_permission(Permission.CLASS_MANAGE.value)),
+) -> dict:
+    school_class = await class_crud.get(db, class_id)
+    student = await db.get(Student, student_id)
+    if student is None:
+        return {"ok": False, "detail": "Student not found"}
+    if student.branch_id != school_class.branch_id:
+        return {"ok": False, "detail": "Student and class must belong to the same branch"}
+
+    existing = (
+        await db.execute(select(ClassStudentMembership).where(ClassStudentMembership.student_id == student.id).limit(1))
+    ).scalar_one_or_none()
+    previous_class_id = None
+    if existing is None:
+        db.add(
+            ClassStudentMembership(
+                class_id=school_class.id,
+                student_id=student.id,
+                branch_id=school_class.branch_id,
+            )
+        )
+    else:
+        previous_class_id = existing.class_id
+        existing.class_id = school_class.id
+        existing.branch_id = school_class.branch_id
+
+    await _sync_student_class_info(db, student.id)
+    await _sync_class_enrolled(db, school_class.id)
+    if previous_class_id and previous_class_id != school_class.id:
+        await _sync_class_enrolled(db, previous_class_id)
+
+    await db.commit()
+    return {"ok": True}
+
+
+@router.delete("/classes/{class_id}/students/{student_id}", status_code=200)
+async def remove_student_from_class(
+    class_id: str,
+    student_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_permission(Permission.CLASS_MANAGE.value)),
+) -> dict:
+    school_class = await class_crud.get(db, class_id)
+    membership = (
+        await db.execute(
+            select(ClassStudentMembership)
+            .where(ClassStudentMembership.class_id == school_class.id)
+            .where(ClassStudentMembership.student_id == student_id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if membership is None:
+        return {"ok": False, "detail": "Membership not found"}
+
+    await db.delete(membership)
+    await _sync_student_class_info(db, student_id)
+    await _sync_class_enrolled(db, school_class.id)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.delete("/classes/{class_id}", status_code=204)

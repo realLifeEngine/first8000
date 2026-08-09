@@ -36,17 +36,37 @@
 </template>
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
+import { useToast } from 'primevue/usetoast'
+import { useAuthStore } from '../stores/auth'
+import { initTheme } from '../utils/theme'
 const router = useRouter()
+const route = useRoute()
+const toast = useToast()
+const auth = useAuthStore()
 const username = ref('')
 const password = ref('')
-function login() { router.push('/app/overview') }
+
+async function login() {
+  try {
+    await auth.login(username.value, password.value)
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/app/school/class'
+    await router.push(redirect)
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: '登录失败',
+      detail: e?.response?.data?.detail || e?.message || '账号或密码错误',
+      life: 3000,
+    })
+  }
+}
+
 onMounted(() => {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light')
+  initTheme('light')
 })
 </script>
 <style scoped>

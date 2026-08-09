@@ -7,15 +7,17 @@ training, documents, messages, operation logs (read-only).
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_active_user, require_permission
-from core.security import Permission
+from core.security import Permission, ROLE_RANK, role_at_least
 from db.session import get_db
 from models.oa import (
     Contact, Document, KnowledgeBaseEntry, LeaveRequest, Message, Notice,
     OperationLog, Property, TrainingMaterial, WageRecord, WorkPlan, WorkReport,
 )
+from models.user import User
 from schemas.common import PageOut
 from schemas.oa import (
     ContactCreate, ContactOut, ContactUpdate,
@@ -25,6 +27,7 @@ from schemas.oa import (
     MessageCreate, MessageOut,
     NoticeCreate, NoticeOut, NoticeUpdate,
     OperationLogOut,
+    OperationLogViewOut,
     PropertyCreate, PropertyOut, PropertyUpdate,
     TrainingMaterialCreate, TrainingMaterialOut, TrainingMaterialUpdate,
     WageRecordCreate, WageRecordOut,
@@ -52,6 +55,24 @@ log_crud = CRUDBase(OperationLog)
 async def _paged(crud: CRUDBase, out_schema, page: int, page_size: int, db: AsyncSession) -> PageOut:
     items, total = await crud.list(db, page=page, page_size=page_size)
     return PageOut(total=total, page=page, page_size=page_size, items=[out_schema.model_validate(i) for i in items])
+
+
+def _apply_operation_log_visibility(query, viewer: User):
+    if viewer.role == "superuser":
+        return query
+
+    # Non-superusers never see superuser actions.
+    query = query.where(or_(User.role.is_(None), User.role != "superuser"))
+
+    viewer_rank = ROLE_RANK.get(viewer.role, -1)
+    visible_roles = [role for role, rank in ROLE_RANK.items() if rank <= viewer_rank and role != "superuser"]
+    query = query.where(or_(User.role.in_(visible_roles), User.role.is_(None), OperationLog.user_id == viewer.id))
+
+    # Teachers/managers are still branch-scoped.
+    if not role_at_least(viewer.role, "school_admin"):
+        query = query.where(OperationLog.branch_id == viewer.branch_id)
+
+    return query
 
 
 # --- Notices ---
@@ -147,7 +168,7 @@ async def delete_leave_request(item_id: str, db: AsyncSession = Depends(get_db),
 
 # --- Properties ---
 @router.get("/properties", response_model=PageOut)
-async def list_properties(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), db: AsyncSession = Depends(get_db), _=Depends(require_permission(Permission.PROPERTY_MANAGE.value))) -> PageOut:
+async def list_properties(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), db: AsyncSession = Depends(get_db), _=Depends(get_current_active_user)) -> PageOut:
     return await _paged(property_crud, PropertyOut, page, page_size, db)
 
 @router.post("/properties", response_model=PropertyOut, status_code=201)
@@ -243,5 +264,45 @@ async def delete_message(item_id: str, db: AsyncSession = Depends(get_db), _=Dep
 
 # --- Operation Logs (read-only) ---
 @router.get("/operation-logs", response_model=PageOut)
-async def list_operation_logs(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100), db: AsyncSession = Depends(get_db), _=Depends(require_permission(Permission.AUDIT_LOG_VIEW.value))) -> PageOut:
-    return await _paged(log_crud, OperationLogOut, page, page_size, db)
+async def list_operation_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    viewer: User = Depends(require_permission(Permission.AUDIT_LOG_VIEW.value)),
+) -> PageOut:
+    count_query = _apply_operation_log_visibility(
+        select(func.count(OperationLog.id)).select_from(OperationLog).outerjoin(User, User.id == OperationLog.user_id),
+        viewer,
+    )
+    total = (await db.execute(count_query)).scalar_one()
+
+    items_query = _apply_operation_log_visibility(
+        select(OperationLog, User.role, User.nickname, User.name)
+        .outerjoin(User, User.id == OperationLog.user_id)
+        .order_by(desc(OperationLog.created_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size),
+        viewer,
+    )
+    rows = (await db.execute(items_query)).all()
+
+    items = [
+        OperationLogViewOut.model_validate(
+            {
+                "id": log.id,
+                "user_id": log.user_id,
+                "action": log.action,
+                "module": log.module,
+                "ip": log.ip,
+                "detail": log.detail,
+                "branch_id": log.branch_id,
+                "created_at": log.created_at,
+                "updated_at": log.updated_at,
+                "actor_name": nickname or name,
+                "actor_role": role,
+            }
+        )
+        for log, role, nickname, name in rows
+    ]
+
+    return PageOut(total=total, page=page, page_size=page_size, items=items)

@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
 
     # --- CORS ---
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:5174"]
 
     # --- Pagination defaults ---
     DEFAULT_PAGE_SIZE: int = 10

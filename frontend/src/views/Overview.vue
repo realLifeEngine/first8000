@@ -2,15 +2,15 @@
   <div>
     <PageHeader title="仪表盘总览" crumb="总览" subtitle="教育机构运营核心指标一览">
       <template #actions>
-        <Button label="导出报表" icon="pi pi-download" outlined @click="exportReport" />
-        <Button label="新增学员" icon="pi pi-plus" @click="showAddStudent = true" />
+        <Button style="color: white;" label="导出报表" icon="pi pi-download" iconPos="left" outlined @click="exportReport" />
+        <Button style="color: white;" label="新增学员" icon="pi pi-plus" iconPos="left" @click="showAddStudent = true" />
       </template>
     </PageHeader>
     <div class="kpi-grid">
-      <KpiCard label="在读学员总数" value="1,284" :delta="4.2" :icon="Users" />
-      <KpiCard label="本月实收业绩" value="¥328,940" :delta="6.8" :icon="Wallet" />
-      <KpiCard label="本周出勤率" value="91.5%" :delta="-1.3" :icon="CalendarCheck" />
-      <KpiCard label="待评课堂数" value="18" :delta="null" :icon="ClipboardCheck" accent="var(--color-warning)" />
+      <KpiCard label="在读学员总数" :value="overviewSummary.activeStudents.toLocaleString()" :delta="null" :icon="Users" />
+      <KpiCard label="本月实收业绩" :value="`¥${overviewSummary.monthlyRevenue.toLocaleString()}`" :delta="null" :icon="Wallet" />
+      <KpiCard label="本周出勤率" :value="`${overviewSummary.weeklyAttendanceRate}%`" :delta="null" :icon="CalendarCheck" />
+      <KpiCard label="待评课堂数" :value="overviewSummary.pendingReviews.toLocaleString()" :delta="null" :icon="ClipboardCheck" accent="var(--color-warning)" />
     </div>
     <div class="content-grid">
       <div class="chart-card"><div class="card-head"><h3>营收与学员趋势</h3></div><div ref="revenueChartEl" class="chart-el"></div></div>
@@ -20,7 +20,7 @@
       <div class="list-card">
         <div class="card-head"><h3>待办工作计划</h3><router-link to="/app/oa/plans" class="link">查看全部</router-link></div>
         <ul class="todo-list" role="list">
-          <li v-for="p in workPlans.slice(0,5)" :key="p.id" class="todo-item" @click="openPlan(p)">
+          <li v-for="p in workPlansData.slice(0,5)" :key="p.id" class="todo-item" @click="openPlan(p)">
             <div class="todo-priority" :class="'p-' + p.priority"></div>
             <div class="todo-body"><p class="todo-title">{{ p.title }}</p><p class="todo-meta">{{ p.owner }} · 截止 {{ p.deadline }}</p></div>
             <StatusTag :value="p.read" />
@@ -30,7 +30,7 @@
       <div class="list-card">
         <div class="card-head"><h3>最新公文通知</h3><router-link to="/app/oa/notices" class="link">查看全部</router-link></div>
         <ul class="todo-list" role="list">
-          <li v-for="n in notices" :key="n.id" class="todo-item" @click="openNotice(n)">
+          <li v-for="n in noticesData" :key="n.id" class="todo-item" @click="openNotice(n)">
             <FileText :size="16" class="notice-icon" />
             <div class="todo-body"><p class="todo-title">{{ n.title }}</p><p class="todo-meta">{{ n.publisher }} · {{ n.createTime }}</p></div>
             <StatusTag :value="n.status" />
@@ -85,9 +85,48 @@ import Dropdown from 'primevue/dropdown'
 import Textarea from 'primevue/textarea'
 import ProgressBar from 'primevue/progressbar'
 import { useToast } from 'primevue/usetoast'
-import { workPlans, notices, revenueTrend, attendanceTrend, businessStatuses } from '../data/mockData'
+import { workPlans, notices } from '../api/oa'
+import { fetchOverviewSummary } from '../api/datacenter'
+import { useAuthStore } from '../stores/auth'
 const toast = useToast()
-const statuses = businessStatuses
+const auth = useAuthStore()
+const statuses = ['意向', '在读', '已毕业']
+const workPlansData = ref([])
+const noticesData = ref([])
+const loading = ref(false)
+const overviewSummary = ref({ activeStudents: 0, monthlyRevenue: 0, weeklyAttendanceRate: 0, pendingReviews: 0 })
+
+const revenueTrend = [
+  { month: '1月', revenue: 20000 }, { month: '2月', revenue: 25000 }, { month: '3月', revenue: 22000 },
+  { month: '4月', revenue: 28000 }, { month: '5月', revenue: 32000 }, { month: '6月', revenue: 38000 }
+]
+
+const attendanceTrend = [
+  { month: '1月', rate: 92 }, { month: '2月', rate: 94 }, { month: '3月', rate: 91 },
+  { month: '4月', rate: 95 }, { month: '5月', rate: 96 }, { month: '6月', rate: 94 }
+]
+
+async function loadDashboardData() {
+  loading.value = true
+  try {
+    const [summaryResp, plansResp, noticesResp] = await Promise.all([fetchOverviewSummary(), workPlans.list(), notices.list()])
+    overviewSummary.value = {
+      activeStudents: Number(summaryResp.active_students ?? summaryResp.activeStudents ?? 0),
+      monthlyRevenue: Number(summaryResp.monthly_revenue ?? summaryResp.monthlyRevenue ?? 0),
+      weeklyAttendanceRate: Number(summaryResp.weekly_attendance_rate ?? summaryResp.weeklyAttendanceRate ?? 0),
+      pendingReviews: Number(summaryResp.pending_reviews ?? summaryResp.pendingReviews ?? 0),
+    }
+    workPlansData.value = Array.isArray(plansResp) ? plansResp.slice(0, 3) : []
+    noticesData.value = Array.isArray(noticesResp) ? noticesResp.slice(0, 3) : []
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message || '无法加载仪表盘数据', life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadDashboardData())
+
 const revenueChartEl = ref(null)
 const attendanceChartEl = ref(null)
 const showAddStudent = ref(false)

@@ -6,7 +6,8 @@ before init_models() / Alembic autogenerate runs.
 from models.branch import Branch
 from models.user import User, StaffPermission
 from models.student import Student
-from models.academic import SchoolClass, CourseProduct, CourseRecord
+from models.deleted_student import DeletedStudent
+from models.academic import SchoolClass, CourseProduct, CourseRecord, ClassStudentMembership
 from models.oa import (
     Notice,
     WorkPlan,
@@ -28,9 +29,11 @@ __all__ = [
     "User",
     "StaffPermission",
     "Student",
+    "DeletedStudent",
     "SchoolClass",
     "CourseProduct",
     "CourseRecord",
+    "ClassStudentMembership",
     "Notice",
     "WorkPlan",
     "WorkReport",

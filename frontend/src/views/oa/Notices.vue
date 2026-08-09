@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="内部公文" crumb="办公OA > 内部公文" subtitle="发布与查阅机构行政通知">
-      <template #actions><Button label="发布公文" icon="pi pi-plus" @click="openCreate" /></template>
+      <template #actions><Button v-if="auth.can('notice:create')" label="发布公文" icon="pi pi-plus" @click="openCreate" /></template>
     </PageHeader>
     <div class="table-card">
       <DataTable :value="list" paginator :rows="10" dataKey="id" responsiveLayout="scroll" stripedRows removableSort>
@@ -9,7 +9,7 @@
         <Column header="标题" sortable field="title"><template #body="{ data }"><div class="title-cell"><Star v-if="data.starred" :size="14" class="star" /><span @click="openDetail(data)" class="link-text">{{ data.title }}</span></div></template></Column>
         <Column field="publisher" header="发布人" sortable /><Column field="createTime" header="发布时间" sortable />
         <Column field="status" header="状态" sortable><template #body="{ data }"><StatusTag :value="data.status" /></template></Column>
-        <Column header="管理" style="width:90px"><template #body="{ data }"><button class="icon-action" @click="openEdit(data)"><Pencil :size="15" /></button></template></Column>
+        <Column header="管理" style="width:90px"><template #body="{ data }"><button v-if="auth.can('notice:edit')" class="icon-action" @click="openEdit(data)"><Pencil :size="15" /></button></template></Column>
       </DataTable>
     </div>
     <Dialog v-model:visible="showDetail" modal header="公文详情" :style="{width:'560px'}">
@@ -27,7 +27,7 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Star, Pencil } from 'lucide-vue-next'
 import PageHeader from '../../components/PageHeader.vue'
 import StatusTag from '../../components/StatusTag.vue'
@@ -40,21 +40,51 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
-import { notices, nextId } from '../../data/mockData'
+import { notices } from '../../api/oa'
+import { useAuthStore } from '../../stores/auth'
 const toast = useToast()
-const list = ref([...notices])
+const auth = useAuthStore()
+const list = ref([])
+const loading = ref(false)
 const showDetail = ref(false)
 const active = ref(null)
 function openDetail(row) { active.value = row; showDetail.value = true }
 const showEditor = ref(false)
 const editing = ref(false)
 const form = ref({ category: '行政通知', status: '正常', title: '', content: '' })
+
+async function loadNotices() {
+  loading.value = true
+  try {
+    const data = await notices.list()
+    list.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadNotices())
+
 function openCreate() { editing.value = false; form.value = { category: '行政通知', status: '正常', title: '', content: '' }; showEditor.value = true }
 function openEdit(row) { editing.value = true; form.value = { ...row }; showEditor.value = true }
-function save() {
-  if (editing.value) { const idx = list.value.findIndex(n => n.id === form.value.id); if (idx > -1) list.value[idx] = { ...list.value[idx], ...form.value }; toast.add({ severity: 'success', summary: '更新成功', life: 2500 }) }
-  else { list.value.unshift({ ...form.value, id: nextId(), publisher: '管理员', createTime: new Date().toISOString().slice(0,10), starred: false, pinned: false }); toast.add({ severity: 'success', summary: '发布成功', life: 2500 }) }
-  showEditor.value = false
+
+async function save() {
+  try {
+    if (editing.value) {
+      await notices.update(form.value.id, form.value)
+      await loadNotices()
+      toast.add({ severity: 'success', summary: '更新成功', life: 2500 })
+    } else {
+      await notices.create(form.value)
+      await loadNotices()
+      toast.add({ severity: 'success', summary: '发布成功', life: 2500 })
+    }
+    showEditor.value = false
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '操作失败', detail: e.message, life: 3000 })
+  }
 }
 </script>
 <style scoped>

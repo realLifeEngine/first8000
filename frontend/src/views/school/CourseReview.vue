@@ -28,7 +28,7 @@
   </div>
 </template>
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import PageHeader from '../../components/PageHeader.vue'
 import RecordDialog from '../../components/RecordDialog.vue'
 import DataTable from 'primevue/datatable'
@@ -39,16 +39,46 @@ import Rating from 'primevue/rating'
 import Textarea from 'primevue/textarea'
 import InputText from 'primevue/inputtext'
 import { useToast } from 'primevue/usetoast'
-import { courseRecords } from '../../data/mockData'
+import { listCourseRecords, submitCourseReview } from '../../api/school'
+import { normalizeListResponse } from '../../api/response'
+import { useAuthStore } from '../../stores/auth'
 const toast = useToast()
-const list = ref([...courseRecords])
+const auth = useAuthStore()
+const list = ref([])
+const loading = ref(false)
 const mode = ref('pending')
 const pending = computed(() => list.value.filter(r => r.status === '待评'))
 const done = computed(() => list.value.filter(r => r.status === '已评'))
 const showReview = ref(false)
 const reviewing = ref(null)
+
+async function loadCourseRecords() {
+  loading.value = true
+  try {
+    const data = await listCourseRecords()
+    list.value = normalizeListResponse(data)
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadCourseRecords())
+
 function openReview(row) { reviewing.value = row; showReview.value = true }
-function submitReview() { reviewing.value.status = '已评'; showReview.value = false; toast.add({ severity: 'success', summary: '点评已提交', detail: `${reviewing.value.student} 的课堂点评已完成`, life: 3000 }) }
+
+async function submitReview() {
+  try {
+    await submitCourseReview(reviewing.value.id, { rating: reviewing.value.rating, comment: reviewing.value.comment })
+    await loadCourseRecords()
+    showReview.value = false
+    toast.add({ severity: 'success', summary: '点评已提交', detail: `${reviewing.value.student} 的课堂点评已完成`, life: 3000 })
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '提交失败', detail: e.message, life: 3000 })
+  }
+}
+
 const showFilter = ref(false)
 const filterName = ref('')
 const filterTeacher = ref('')

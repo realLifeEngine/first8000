@@ -1,15 +1,15 @@
 <template>
   <div>
     <PageHeader title="工作计划" crumb="办公OA > 工作计划" subtitle="跟踪团队工作计划的进度与反馈">
-      <template #actions><Button label="新建计划" icon="pi pi-plus" @click="openCreate" /></template>
+      <template #actions><Button v-if="auth.can('plan:create')" label="新建计划" icon="pi pi-plus" @click="openCreate" /></template>
     </PageHeader>
     <div class="table-card">
       <DataTable :value="list" paginator :rows="10" dataKey="id" responsiveLayout="scroll" stripedRows removableSort>
         <Column field="title" header="标题" sortable><template #body="{ data }"><span class="link-text" @click="openDetail(data)">{{ data.title }}</span></template></Column>
         <Column field="owner" header="负责人" sortable /><Column field="priority" header="优先级" sortable><template #body="{ data }"><StatusTag :value="data.priority" /></template></Column>
-        <Column field="progress" header="进度"><template #body="{ data }"><ProgressBar :value="Number(data.progress)" style="height:8px" /></template></Column>
+        <!-- <Column field="progress" header="进度"><template #body="{ data }"><ProgressBar :value="Number(data.progress)" style="height:8px" /></template></Column> -->
         <Column field="deadline" header="截止时间" sortable /><Column field="read" header="状态"><template #body="{ data }"><StatusTag :value="data.read" /></template></Column>
-        <Column header="管理" style="width:90px"><template #body="{ data }"><button class="icon-action" @click="openEdit(data)"><Pencil :size="15" /></button></template></Column>
+        <Column header="管理" style="width:90px"><template #body="{ data }"><button v-if="auth.can('plan:edit')" class="icon-action" @click="openEdit(data)"><Pencil :size="15" /></button></template></Column>
       </DataTable>
     </div>
     <Dialog v-model:visible="showDetail" modal header="工作计划详情" :style="{width:'520px'}">
@@ -36,7 +36,7 @@
   </div>
 </template>
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { Pencil } from 'lucide-vue-next'
 import PageHeader from '../../components/PageHeader.vue'
 import StatusTag from '../../components/StatusTag.vue'
@@ -50,9 +50,12 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Slider from 'primevue/slider'
 import { useToast } from 'primevue/usetoast'
-import { workPlans, nextId } from '../../data/mockData'
+import { workPlans } from '../../api/oa'
+import { useAuthStore } from '../../stores/auth'
 const toast = useToast()
-const list = ref([...workPlans])
+const auth = useAuthStore()
+const list = ref([])
+const loading = ref(false)
 const showDetail = ref(false)
 const active = ref(null)
 function openDetail(row) { active.value = row; showDetail.value = true }
@@ -60,13 +63,40 @@ const showEditor = ref(false)
 const editing = ref(false)
 const form = ref({ title: '', owner: '', priority: '中', deadline: '', progressNum: 0 })
 watch(() => form.value.progressNum, v => form.value.progress = String(v))
+
+async function loadWorkPlans() {
+  loading.value = true
+  try {
+    const data = await workPlans.list()
+    list.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadWorkPlans())
+
 function openCreate() { editing.value = false; form.value = { title: '', owner: '', priority: '中', deadline: '', progressNum: 0, progress: '0' }; showEditor.value = true }
 function openEdit(row) { editing.value = true; form.value = { ...row, progressNum: Number(row.progress) }; showEditor.value = true }
-function save() {
-  const payload = { ...form.value, progress: String(form.value.progressNum) }
-  if (editing.value) { const idx = list.value.findIndex(p => p.id === payload.id); if (idx > -1) list.value[idx] = { ...list.value[idx], ...payload }; toast.add({ severity: 'success', summary: '更新成功', life: 2500 }) }
-  else { list.value.unshift({ ...payload, id: nextId(), read: '未读', feedback: '待反馈', initiator: '管理员', participants: '1人', createTime: new Date().toISOString().slice(0,10) }); toast.add({ severity: 'success', summary: '新建成功', life: 2500 }) }
-  showEditor.value = false
+
+async function save() {
+  try {
+    const payload = { ...form.value, progress: String(form.value.progressNum) }
+    if (editing.value) {
+      await workPlans.update(payload.id, payload)
+      await loadWorkPlans()
+      toast.add({ severity: 'success', summary: '更新成功', life: 2500 })
+    } else {
+      await workPlans.create(payload)
+      await loadWorkPlans()
+      toast.add({ severity: 'success', summary: '新建成功', life: 2500 })
+    }
+    showEditor.value = false
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '操作失败', detail: e.message, life: 3000 })
+  }
 }
 </script>
 <style scoped>

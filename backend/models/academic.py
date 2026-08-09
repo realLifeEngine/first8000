@@ -6,6 +6,7 @@ mock data so the frontend swap in Batch 7 is a drop-in.
 """
 from __future__ import annotations
 
+from sqlalchemy import UniqueConstraint
 from sqlalchemy import ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -25,6 +26,10 @@ class SchoolClass(Base, UUIDPKMixin, TimestampMixin, BranchScopedMixin):
     status: Mapped[str] = mapped_column(String(20), default="进行中")
 
     course_product: Mapped["CourseProduct"] = relationship(back_populates="classes")
+    student_memberships: Mapped[list["ClassStudentMembership"]] = relationship(
+        back_populates="school_class",
+        cascade="all, delete-orphan",
+    )
 
 
 class CourseProduct(Base, UUIDPKMixin, TimestampMixin, BranchScopedMixin):
@@ -59,3 +64,17 @@ class CourseRecord(Base, UUIDPKMixin, TimestampMixin, BranchScopedMixin):
 
     student: Mapped["Student"] = relationship(back_populates="course_records")
     course_product: Mapped["CourseProduct"] = relationship(back_populates="course_records")
+
+
+class ClassStudentMembership(Base, UUIDPKMixin, TimestampMixin, BranchScopedMixin):
+    __tablename__ = "class_student_memberships"
+    __table_args__ = (
+        UniqueConstraint("class_id", "student_id", name="uq_class_student_membership"),
+        UniqueConstraint("student_id", name="uq_student_single_class_membership"),
+    )
+
+    class_id: Mapped[str] = mapped_column(String(36), ForeignKey("school_classes.id", ondelete="CASCADE"), index=True)
+    student_id: Mapped[str] = mapped_column(String(36), ForeignKey("students.id", ondelete="CASCADE"), index=True)
+
+    school_class: Mapped["SchoolClass"] = relationship(back_populates="student_memberships")
+    student: Mapped["Student"] = relationship(back_populates="class_memberships")

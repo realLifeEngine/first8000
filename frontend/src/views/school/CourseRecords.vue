@@ -17,7 +17,7 @@
         <div class="table-card">
           <DataTable :value="list.filter(r => r.status === '待评')" paginator :rows="10" dataKey="id" responsiveLayout="scroll" stripedRows>
             <Column field="date" header="日期" /><Column field="teacher" header="教师" /><Column field="student" header="学员" /><Column field="course" header="课程" />
-            <Column header="操作" style="width:100px"><template #body="{ data }"><Button label="去点评" size="small" text @click="openEdit(data)" /></template></Column>
+            <Column header="操作" style="width:120px"><template #body="{ data }"><Button label="去点评" size="small" text @click="openEdit(data)" /></template></Column>
           </DataTable>
         </div>
       </TabPanel>
@@ -37,7 +37,7 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { Pencil } from 'lucide-vue-next'
 import PageHeader from '../../components/PageHeader.vue'
 import StatusTag from '../../components/StatusTag.vue'
@@ -53,20 +53,51 @@ import Dropdown from 'primevue/dropdown'
 import Textarea from 'primevue/textarea'
 import Rating from 'primevue/rating'
 import { useToast } from 'primevue/usetoast'
-import { courseRecords, teachers, nextId } from '../../data/mockData'
+import { listCourseRecords, createCourseRecord } from '../../api/school'
+import { normalizeListResponse } from '../../api/response'
+import { useAuthStore } from '../../stores/auth'
 const toast = useToast()
-const list = ref([...courseRecords])
+const auth = useAuthStore()
+const list = ref([])
+const loading = ref(false)
+
+async function loadCourseRecords() {
+  loading.value = true
+  try {
+    const data = await listCourseRecords()
+    list.value = normalizeListResponse(data)
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadCourseRecords())
 const tabIndex = ref(0)
-const teacherNames = teachers.map(t => t.nickname)
+const teacherNames = computed(() => [...new Set(list.value.map((r) => r.teacher).filter(Boolean))])
 const showEditor = ref(false)
 const editing = ref(false)
-const form = ref({ teacher: teacherNames[0], student: '', course: '', topic: '', date: '', duration: 60, comment: '', rating: 0 })
-function openCreate() { editing.value = false; form.value = { teacher: teacherNames[0], student: '', course: '', topic: '', date: '', duration: 60, comment: '', rating: 0, status: '待评' }; showEditor.value = true }
+const form = ref({ teacher: '', student: '', course: '', topic: '', date: '', duration: 60, comment: '', rating: 0 })
+function openCreate() { editing.value = false; form.value = { teacher: teacherNames.value[0] || '', student: '', course: '', topic: '', date: '', duration: 60, comment: '', rating: 0, status: '待评' }; showEditor.value = true }
 function openEdit(row) { editing.value = true; form.value = { ...row }; showEditor.value = true }
-function save() {
-  if (editing.value) { const idx = list.value.findIndex(r => r.id === form.value.id); if (idx > -1) list.value[idx] = { ...list.value[idx], ...form.value, status: form.value.comment ? '已评' : '待评' }; toast.add({ severity: 'success', summary: '更新成功', life: 2500 }) }
-  else { list.value.unshift({ ...form.value, id: nextId(), time: '14:00', status: form.value.comment ? '已评' : '待评' }); toast.add({ severity: 'success', summary: '登记成功', life: 2500 }) }
-  showEditor.value = false
+async function save() {
+  try {
+    if (editing.value) {
+      const idx = list.value.findIndex(r => r.id === form.value.id)
+      if (idx > -1) {
+        list.value[idx] = { ...list.value[idx], ...form.value, status: form.value.comment ? '已评' : '待评' }
+      }
+      toast.add({ severity: 'success', summary: '更新成功', life: 2500 })
+    } else {
+      await createCourseRecord(form.value)
+      await loadCourseRecords()
+      toast.add({ severity: 'success', summary: '登记成功', life: 2500 })
+    }
+    showEditor.value = false
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '保存失败', detail: e.message, life: 3000 })
+  }
 }
 </script>
 <style scoped>

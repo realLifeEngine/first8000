@@ -14,17 +14,43 @@
   </div>
 </template>
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import PageHeader from '../../components/PageHeader.vue'
 import StatusTag from '../../components/StatusTag.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
-import { wageRecords } from '../../data/mockData'
+import { wages } from '../../api/oa'
+import { useAuthStore } from '../../stores/auth'
 const toast = useToast()
-const list = ref([...wageRecords])
-function markPaid(row) { row.status = '已发放'; toast.add({ severity: 'success', summary: '已发放', detail: `${row.name} 的工资已标记为发放`, life: 2500 }) }
+const auth = useAuthStore()
+const list = ref([])
+const loading = ref(false)
+
+async function loadWages() {
+  loading.value = true
+  try {
+    const data = await wages.list()
+    list.value = data
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadWages())
+
+async function markPaid(row) {
+  try {
+    await wages.update(row.id, { ...row, status: '已发放' })
+    await loadWages()
+    toast.add({ severity: 'success', summary: '已发放', detail: `${row.name} 的工资已标记为发放`, life: 2500 })
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '操作失败', detail: e.message, life: 3000 })
+  }
+}
 </script>
 <style scoped>
 .table-card { background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }

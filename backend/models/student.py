@@ -44,3 +44,7 @@ class Student(Base, UUIDPKMixin, TimestampMixin, BranchScopedMixin):
 
     branch: Mapped["Branch"] = relationship(back_populates="students")
     course_records: Mapped[list["CourseRecord"]] = relationship(back_populates="student", cascade="all, delete-orphan")
+    class_memberships: Mapped[list["ClassStudentMembership"]] = relationship(
+        back_populates="student",
+        cascade="all, delete-orphan",
+    )

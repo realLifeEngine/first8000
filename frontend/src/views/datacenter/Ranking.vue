@@ -12,12 +12,29 @@
   </div>
 </template>
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import PageHeader from '../../components/PageHeader.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
-import { staffRanking } from '../../data/mockData'
-const list = ref([...staffRanking])
+import { useToast } from 'primevue/usetoast'
+import { fetchStaffRanking } from '../../api/datacenter'
+const toast = useToast()
+const list = ref([])
+const loading = ref(false)
+
+async function loadRanking() {
+  loading.value = true
+  try {
+    const data = await fetchStaffRanking()
+    list.value = Array.isArray(data) ? data : data.data || []
+  } catch (e) {
+    toast.add({ severity: 'error', summary: '加载失败', detail: e.message, life: 3000 })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadRanking())
 const ranked = computed(() => [...list.value].sort((a, b) => Number(b.performance) - Number(a.performance)))
 </script>
 <style scoped>
