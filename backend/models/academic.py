@@ -40,6 +40,8 @@ class CourseProduct(Base, UUIDPKMixin, TimestampMixin, BranchScopedMixin):
     product: Mapped[str | None] = mapped_column(String(80), nullable=True)
     difficulty: Mapped[int] = mapped_column(Integer, default=3)  # 1-5 star rating
     version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    duration_spec: Mapped[str | None] = mapped_column(String(60), nullable=True)  # 时间规格, e.g. "45分钟/次"
+    unit_price: Mapped[float] = mapped_column(Numeric(10, 2), default=0)  # 产品单价
     info: Mapped[str | None] = mapped_column(Text, nullable=True)
     goal: Mapped[str | None] = mapped_column(Text, nullable=True)
 

@@ -45,6 +45,8 @@ class CourseProductBase(BaseModel):
     product: str | None = None
     difficulty: int = Field(3, ge=1, le=5)
     version: str | None = None
+    duration_spec: str | None = Field(None, max_length=60)
+    unit_price: float = Field(0, ge=0)
     info: str | None = None
     goal: str | None = None
 
@@ -58,6 +60,8 @@ class CourseProductUpdate(BaseModel):
     product: str | None = None
     difficulty: int | None = Field(None, ge=1, le=5)
     version: str | None = None
+    duration_spec: str | None = Field(None, max_length=60)
+    unit_price: float | None = Field(None, ge=0)
     info: str | None = None
     goal: str | None = None
 

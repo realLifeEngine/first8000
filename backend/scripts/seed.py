@@ -46,6 +46,7 @@ COURSE_NAMES = ["钢琴基础", "舞蹈提升", "美术创意", "英语口语", 
 COURSE_PRODUCT_NAMES = ["钢琴基础入门", "舞蹈形体训练", "创意美术启蒙", "英语口语进阶", "数学思维拓展",
                         "声乐发声训练", "书法基础", "围棋启蒙", "编程思维"]
 PRODUCT_CATEGORIES = ["音乐类", "舞蹈类", "美术类", "语言类", "思维类"]
+DURATION_SPECS = ["45分钟/次", "60分钟/次", "90分钟/次"]
 
 
 async def seed() -> None:
@@ -88,6 +89,8 @@ async def seed() -> None:
             cp = m.CourseProduct(
                 seq=i + 1, name=name, product=PRODUCT_CATEGORIES[i % 5], difficulty=rnd(1, 5),
                 version=f"v{i % 3 + 1}.0",
+                duration_spec=DURATION_SPECS[i % len(DURATION_SPECS)],
+                unit_price=rnd(80, 320),
                 info="本课程系统讲解基础知识与技能训练方法，配套教具与教材。",
                 goal="培养学员基础技能与兴趣，建立扎实的学习基础。",
                 branch_id=branch_main.id,
