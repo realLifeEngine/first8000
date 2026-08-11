@@ -11,6 +11,8 @@ from __future__ import annotations
 import asyncio
 import random
 
+from sqlalchemy import text
+
 from db.session import session_scope, init_models
 from core.security import hash_password
 import models as m
@@ -43,16 +45,123 @@ CHINESE_NAMES = ["艾力江", "古丽努尔", "阿卜力克木", "娜迪拉", "�
 CLASS_INFOS = ["钢琴精品班", "舞蹈基础班", "美术创意班", "英语启蒙班", "数学思维班"]
 CONSUME_FREQS = ["每周2次", "每周3次", "每周1次"]
 COURSE_NAMES = ["钢琴基础", "舞蹈提升", "美术创意", "英语口语", "数学思维"]
-COURSE_PRODUCT_NAMES = ["钢琴基础入门", "舞蹈形体训练", "创意美术启蒙", "英语口语进阶", "数学思维拓展",
-                        "声乐发声训练", "书法基础", "围棋启蒙", "编程思维"]
-PRODUCT_CATEGORIES = ["音乐类", "舞蹈类", "美术类", "语言类", "思维类"]
 DURATION_SPECS = ["45分钟/次", "60分钟/次", "90分钟/次"]
+COURSE_LEVEL_SPECS = [
+    {
+        "name": "编程启蒙",
+        "difficulty": 2,
+        "version": "v1.0",
+        "duration_spec": "45分钟/次",
+        "unit_price": 75,
+        "unit_price_label": "75元/课时",
+        "courses": ["3-4岁小小工程师", "5岁扫卡编程"],
+        "price_tiers": [{"课时": 30, "价格": 2250}, {"课时": 60, "价格": 4500}],
+        "info": "面向低龄学员的图形化编程启蒙课程，培养基础逻辑与兴趣。",
+        "goal": "建立编程思维和问题解决意识，激发学习兴趣。",
+    },
+    {
+        "name": "编程基础",
+        "difficulty": 3,
+        "version": "v1.0",
+        "duration_spec": "45分钟/次",
+        "unit_price": 85,
+        "unit_price_label": "85元/课时",
+        "courses": ["6岁wedo编程"],
+        "price_tiers": [{"课时": 30, "价格": 2550}, {"课时": 60, "价格": 5100}],
+        "info": "以可视化编程为核心，帮助学员掌握基础语法与任务设计。",
+        "goal": "让学员形成稳定的编程习惯并完成基础项目。",
+    },
+    {
+        "name": "编程进阶",
+        "difficulty": 4,
+        "version": "v2.0",
+        "duration_spec": "60分钟/次",
+        "unit_price": 95,
+        "unit_price_label": "95元/课时",
+        "courses": ["7岁图形化编程", "8岁智能机器人"],
+        "price_tiers": [{"课时": 30, "价格": 2850}, {"课时": 60, "价格": 5700}],
+        "info": "面向有一定基础的学员，提升逻辑拆解与项目编程能力。",
+        "goal": "帮助学员完成更复杂的编程任务与机器人搭建。",
+    },
+    {
+        "name": "编程高阶",
+        "difficulty": 4,
+        "version": "v2.0",
+        "duration_spec": "60分钟/次",
+        "unit_price": 105,
+        "unit_price_label": "105元/课时",
+        "courses": ["9岁PYTHON人工智能编程"],
+        "price_tiers": [{"课时": 30, "价格": 3150}, {"课时": 60, "价格": 6300}],
+        "info": "以人工智能与 Python 为主线，深化项目化学习。",
+        "goal": "提升学员的代码表达能力与复杂问题解决能力。",
+    },
+    {
+        "name": "算法编程",
+        "difficulty": 5,
+        "version": "v3.0",
+        "duration_spec": "90分钟/次",
+        "unit_price": 120,
+        "unit_price_label": "120元/课时",
+        "courses": ["11岁NOIP信奥赛编程"],
+        "price_tiers": [{"课时": 30, "价格": 3600}, {"课时": 60, "价格": 7200}],
+        "info": "针对竞赛与升学导向的算法编程训练课程。",
+        "goal": "培养严谨的算法思维和高阶解题能力。",
+    },
+]
+
+
+def build_course_product_seed_rows(branch_id: str) -> list[dict]:
+    rows = []
+    for spec in COURSE_LEVEL_SPECS:
+        rows.append(
+            {
+                "name": spec["name"],
+                "product": "编程类",
+                "difficulty": spec["difficulty"],
+                "version": spec["version"],
+                "duration_spec": spec["duration_spec"],
+                "unit_price": spec["unit_price"],
+                "info": spec["info"],
+                "goal": spec["goal"],
+                "branch_id": branch_id,
+                "related_properties": {
+                    "机构": "咔库编程中心",
+                    "标题": "价目表",
+                    "课时说明": "1课时=45分钟，1次课=2课时",
+                    "课程分类": [
+                        {
+                            "分类": spec["name"],
+                            "单价": spec["unit_price_label"],
+                            "课程": spec["courses"],
+                            "课时价格": spec["price_tiers"],
+                        }
+                    ],
+                },
+            }
+        )
+    return rows
 
 
 async def seed() -> None:
     await init_models()
 
     async with session_scope() as db:
+        await db.execute(text("DELETE FROM course_records"))
+        await db.execute(text("DELETE FROM class_student_memberships"))
+        await db.execute(text("DELETE FROM school_classes"))
+        await db.execute(text("DELETE FROM course_products"))
+        await db.execute(text("DELETE FROM students"))
+        await db.execute(text("DELETE FROM contacts"))
+        await db.execute(text("DELETE FROM leave_requests"))
+        await db.execute(text("DELETE FROM work_reports"))
+        await db.execute(text("DELETE FROM work_plans"))
+        await db.execute(text("DELETE FROM notices"))
+        await db.execute(text("DELETE FROM properties"))
+        await db.execute(text("DELETE FROM wage_records"))
+        await db.execute(text("DELETE FROM users"))
+        await db.execute(text("DELETE FROM branches"))
+        await db.flush()
+
         # --- Branches ---
         branch_main = m.Branch(name="总校区", code="MAIN", address="乌鲁木齐市天山区", phone="0991-1234567")
         branch_a = m.Branch(name="分校区A", code="BR-A", address="乌鲁木齐市沙依巴克区")
@@ -85,15 +194,19 @@ async def seed() -> None:
 
         # --- Course Products ---
         course_products = []
-        for i, name in enumerate(COURSE_PRODUCT_NAMES):
+        for index, row in enumerate(build_course_product_seed_rows(branch_main.id), start=1):
             cp = m.CourseProduct(
-                seq=i + 1, name=name, product=PRODUCT_CATEGORIES[i % 5], difficulty=rnd(1, 5),
-                version=f"v{i % 3 + 1}.0",
-                duration_spec=DURATION_SPECS[i % len(DURATION_SPECS)],
-                unit_price=rnd(80, 320),
-                info="本课程系统讲解基础知识与技能训练方法，配套教具与教材。",
-                goal="培养学员基础技能与兴趣，建立扎实的学习基础。",
-                branch_id=branch_main.id,
+                seq=index,
+                name=row["name"],
+                product=row["product"],
+                difficulty=row["difficulty"],
+                version=row["version"],
+                duration_spec=row["duration_spec"],
+                unit_price=row["unit_price"],
+                info=row["info"],
+                goal=row["goal"],
+                related_properties=row["related_properties"],
+                branch_id=row["branch_id"],
             )
             db.add(cp)
             course_products.append(cp)

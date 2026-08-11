@@ -6,7 +6,11 @@ dedicated PATCH action for submitting a course review (CourseReview.vue's
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+import json
+from functools import lru_cache
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -224,3 +228,111 @@ async def submit_review(record_id: str, payload: CourseReviewSubmit, db: AsyncSe
     """Backs CourseReview.vue's '提交点评' button — sets rating+comment and flips status to 已评."""
     data = {"rating": payload.rating, "comment": payload.comment, "status": "已评"}
     return CourseRecordOut.model_validate(await record_crud.update(db, record_id, data))
+
+
+# --- Course Index (tree.json backed file browser) ---
+
+_TREE_FILE = Path(__file__).parent.parent / "assets" / "tree.json"
+
+
+@lru_cache(maxsize=1)
+def _load_course_tree() -> dict:
+    """Load the course tree from assets/tree.json once per process."""
+    if not _TREE_FILE.exists():
+        return {}
+    with _TREE_FILE.open(encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _flatten_course_tree(node: dict, parent_parts: list[str] | None = None) -> list[dict]:
+    """Flatten the nested tree into a list of directory/file entries for pagination."""
+    if not isinstance(node, dict):
+        return []
+
+    parent_parts = list(parent_parts or [])
+    entries: list[dict] = []
+
+    for name, value in node.items():
+        if name in {"_self", "_files"}:
+            continue
+        if not isinstance(value, dict):
+            continue
+
+        child_parts = parent_parts + [name]
+        entry = {
+            "name": name,
+            "path": "/".join(child_parts),
+            "url": value.get("_self"),
+            "is_dir": True,
+            "depth": len(child_parts),
+        }
+        entries.append(entry)
+        entries.extend(_flatten_course_tree(value, child_parts))
+
+        files = value.get("_files") or []
+        if isinstance(files, list):
+            for file_entry in files:
+                if not isinstance(file_entry, dict):
+                    continue
+                file_name = file_entry.get("name")
+                if not file_name:
+                    continue
+                entries.append({
+                    "name": file_name,
+                    "path": "/".join(child_parts + [file_name]),
+                    "url": file_entry.get("url"),
+                    "is_dir": False,
+                    "depth": len(child_parts) + 1,
+                })
+
+    return entries
+
+
+@router.get("/course-index/products")
+async def list_course_index_products(
+    _=Depends(get_current_active_user),
+) -> list[dict]:
+    """Return the top-level course products defined in the tree.json file."""
+    tree = _load_course_tree()
+    if not isinstance(tree, dict):
+        return []
+
+    products = []
+    for name in tree.keys():
+        if isinstance(name, str):
+            products.append({"id": name, "name": name, "in_index": True})
+    return products
+
+
+@router.get("/course-index")
+async def get_course_index(
+    product: str = Query(..., description="Top-level directory name"),
+    page: int = Query(1, ge=1, description="Page number to return"),
+    page_size: int = Query(80, ge=1, le=200, description="Maximum number of entries to return"),
+    offset: int | None = Query(None, ge=0, description="Legacy offset parameter"),
+    limit: int | None = Query(None, ge=1, le=200, description="Legacy limit parameter"),
+    _=Depends(get_current_active_user),
+) -> dict:
+    """Return a paged slice of file/directory entries under the given top-level course directory."""
+    tree = _load_course_tree()
+    if not isinstance(tree, dict) or product not in tree:
+        raise HTTPException(status_code=404, detail="Product not found in index")
+
+    items = _flatten_course_tree(tree[product])
+    if offset is not None:
+        page = (offset // (limit or page_size)) + 1
+    if limit is not None:
+        page_size = limit
+
+    total = len(items)
+    start = min((page - 1) * page_size, total)
+    end = min(start + page_size, total)
+    page_items = items[start:end]
+    return {
+        "product": product,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "has_more": end < total,
+        "items": page_items,
+    }

@@ -22,3 +22,6 @@ export const deleteCourseProduct = (id) => client.delete(`/school/course-product
 export const listCourseRecords = (params = {}) => client.get('/school/course-records', { params }).then((r) => r.data)
 export const createCourseRecord = (payload) => client.post('/school/course-records', payload).then((r) => r.data)
 export const submitCourseReview = (id, payload) => client.patch(`/school/course-records/${id}/review`, payload).then((r) => r.data)
+
+export const listCourseIndexProducts = () => client.get('/school/course-index/products').then((r) => r.data)
+export const getCourseIndex = (product, params = {}) => client.get('/school/course-index', { params: { product, ...params } }).then((r) => r.data)

@@ -6,7 +6,7 @@ mock data so the frontend swap in Batch 7 is a drop-in.
 """
 from __future__ import annotations
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import JSON, UniqueConstraint
 from sqlalchemy import ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,6 +44,7 @@ class CourseProduct(Base, UUIDPKMixin, TimestampMixin, BranchScopedMixin):
     unit_price: Mapped[float] = mapped_column(Numeric(10, 2), default=0)  # 产品单价
     info: Mapped[str | None] = mapped_column(Text, nullable=True)
     goal: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_properties: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     classes: Mapped[list["SchoolClass"]] = relationship(back_populates="course_product")
     course_records: Mapped[list["CourseRecord"]] = relationship(back_populates="course_product")

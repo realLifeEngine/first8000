@@ -5,6 +5,8 @@ mirror ClassManage.vue / CourseProducts.vue / CourseReview.vue.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from schemas.common import ORMBase, TimestampOut, CourseRecordStatus
@@ -49,6 +51,7 @@ class CourseProductBase(BaseModel):
     unit_price: float = Field(0, ge=0)
     info: str | None = None
     goal: str | None = None
+    related_properties: dict[str, Any] | None = None
 
 
 class CourseProductCreate(CourseProductBase):
@@ -64,6 +67,7 @@ class CourseProductUpdate(BaseModel):
     unit_price: float | None = Field(None, ge=0)
     info: str | None = None
     goal: str | None = None
+    related_properties: dict[str, Any] | None = None
 
 
 class CourseProductOut(CourseProductBase, TimestampOut):

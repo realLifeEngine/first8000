@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 from fastapi import HTTPException, status
-from sqlalchemy import Integer, case, cast, desc, func, select
+from sqlalchemy import Integer, case, cast, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_active_user, require_permission
@@ -41,9 +41,21 @@ def _apply_student_filters(
     if branch_filter is not None:
         query = query.where(Student.branch_id == branch_filter)
     if search:
-        query = query.where(Student.name.ilike(f"%{search.strip()}%"))
+        search_text = search.strip()
+        query = query.where(
+            or_(
+                Student.name.ilike(f"%{search_text}%"),
+                Student.phone.ilike(f"%{search_text}%"),
+            )
+        )
     if name:
-        query = query.where(Student.name.ilike(f"%{name.strip()}%"))
+        name_text = name.strip()
+        query = query.where(
+            or_(
+                Student.name.ilike(f"%{name_text}%"),
+                Student.phone.ilike(f"%{name_text}%"),
+            )
+        )
     if business_status and business_status != "全部":
         query = query.where(Student.status == business_status)
     if class_info:

@@ -4,6 +4,7 @@
       <template #actions>
         <Button v-if="auth.can('student:search')" label="高级搜索" icon="pi pi-filter" outlined @click="showFilter = true" />
         <Button v-if="auth.can('student:create')" style="color: white;" iconPos="left" label="新增学员" icon="pi pi-plus" @click="openCreate" />
+        <Button v-if="auth.can('student:create')" label="新增签约" icon="pi pi-file-edit" severity="secondary" outlined @click="openContractForm" />
       </template>
     </PageHeader>
 
@@ -142,6 +143,56 @@
         <div class="field full"><label>备注</label><Textarea v-model="form.remark" rows="3" autoResize /></div>
       </div>
     </RecordDialog>
+    <Dialog v-model:visible="showContractModal" modal header="新增签约" :style="{ width: '760px' }" :breakpoints="{ '960px': '95vw' }">
+      <div class="contract-form">
+        <div class="contract-header">
+          <div>
+            <div class="muted">签约对象</div>
+            <h3>{{ contractForm.studentName || '未选择学员' }}</h3>
+          </div>
+          <div class="contract-badge">待处理</div>
+        </div>
+
+        <div class="form-grid contract-grid">
+          <div class="field full">
+            <label>签约对象</label>
+            <Dropdown
+              v-model="contractForm.studentId"
+              :options="studentOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="请输入学员姓名或手机号"
+              filter
+              showClear
+              :loading="contractStudentsLoading"
+              :filter="true"
+              :showToggleAll="false"
+              @filter="onContractStudentFilter"
+            />
+          </div>
+          <div class="field"><label>签约老师</label><Dropdown v-model="contractForm.teacher" :options="contractTeacherOptions" optionLabel="label" optionValue="value" placeholder="请选择" /></div>
+          <div class="field"><label>签约日期</label><InputText v-model="contractForm.signDate" placeholder="2026-08-09" /></div>
+          <div class="field"><label>签约家长</label><InputText v-model="contractForm.parent" placeholder="请输入家长姓名" /></div>
+          <div class="field"><label>签约类型</label><Dropdown v-model="contractForm.contractType" :options="contractTypeOptions" optionLabel="label" optionValue="value" placeholder="请选择" /></div>
+          <div class="field full"><label>财务记录</label>
+            <div class="contract-summary">原价 <b>0</b> 元，优惠 <b>0</b> 元，应收 <b>0</b> 元，已收 <b>0</b> 元</div>
+          </div>
+          <div class="field full"><label>附加说明</label><Textarea v-model="contractForm.remark" rows="3" autoResize placeholder="请输入签约说明" /></div>
+        </div>
+
+        <div class="contract-table">
+          <div class="contract-table-head">
+            <span>产品名称</span><span>单价</span><span>数量</span><span>订单金额</span>
+          </div>
+          <div class="contract-table-empty">暂未找到符合条件的信息！</div>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="关闭" severity="secondary" outlined @click="showContractModal = false" />
+        <Button label="保存" @click="saveContract" />
+      </template>
+    </Dialog>
+
     <Dialog v-model:visible="showDetail" modal header="学员详情" :style="{ width: '720px' }" :breakpoints="{ '960px': '92vw' }">
       <div v-if="activeStudent" class="detail-panel">
         <div class="detail-header">
@@ -286,7 +337,7 @@ async function loadStudents({ page = currentPage.value, pageSize = rows.value } 
 }
 
 onMounted(async () => {
-  await Promise.all([loadStudents(), loadClassOptions()])
+  await Promise.all([loadStudents(), loadClassOptions(), loadContractStudents()])
 })
 
 async function loadClassOptions() {
@@ -407,8 +458,78 @@ function handleSort(event) {
 }
 const showDetail = ref(false)
 const activeStudent = ref(null)
+const showContractModal = ref(false)
+const contractTeacherOptions = [
+  { label: '热西达（自己）', value: '2667' },
+  { label: '吾哈再提', value: '2833' },
+  { label: '卡丽比努尔·吾甫尔（娜娜老师）', value: '3616' },
+]
+const contractTypeOptions = [
+  { label: '常规签约', value: '1' },
+  { label: '爆款签约', value: '2' },
+  { label: '定金签约', value: '3' },
+  { label: '赠品签约', value: '4' },
+  { label: '其他签约', value: '5' },
+]
+const contractForm = ref({ studentId: null, studentName: '', teacher: '2667', signDate: '', parent: '', contractType: '1', remark: '' })
+const studentOptions = ref([])
+const contractStudentsLoading = ref(false)
+let contractSearchTimer = null
+
+async function loadContractStudents(searchText = '', page = 1, pageSize = 20) {
+  contractStudentsLoading.value = true
+  try {
+    const params = { page, pageSize, sortField: 'createdAt', sortOrder: -1 }
+    const trimmed = searchText?.trim() || ''
+    if (trimmed) {
+      params.search = trimmed
+      params.name = trimmed
+    }
+    const data = await listStudentsPage(params)
+    const items = (data.items || []).map((student) => ({
+      value: student.id,
+      label: `${student.name} ${student.phone ? `· ${student.phone}` : ''}`.trim(),
+    }))
+    if (trimmed) {
+      studentOptions.value = items
+    } else {
+      studentOptions.value = items
+    }
+  } catch (e) {
+    toast.add({ severity: 'warn', summary: '学员列表加载失败', detail: '无法加载签约对象，请稍后重试', life: 2500 })
+  } finally {
+    contractStudentsLoading.value = false
+  }
+}
+
+function onContractStudentFilter(event) {
+  const query = event.filter || ''
+  if (contractSearchTimer) clearTimeout(contractSearchTimer)
+  contractSearchTimer = setTimeout(() => {
+    loadContractStudents(query, 1, 50)
+  }, 250)
+}
 function openDetail(row) { activeStudent.value = row; showDetail.value = true }
 function editFromDetail() { showDetail.value = false; openEdit(activeStudent.value) }
+function openContractForm() {
+  contractForm.value = {
+    studentId: activeStudent.value?.id || null,
+    studentName: activeStudent.value?.name || '',
+    teacher: '2667',
+    signDate: new Date().toISOString().slice(0, 10),
+    parent: '',
+    contractType: '1',
+    remark: '',
+  }
+  if (!studentOptions.value.length) {
+    loadContractStudents('', 1, 10)
+  }
+  showContractModal.value = true
+}
+function saveContract() {
+  toast.add({ severity: 'success', summary: '已提交', detail: '签约信息已保存到草稿区', life: 3000 })
+  showContractModal.value = false
+}
 </script>
 <style scoped>
 .summary-grid {
@@ -515,6 +636,15 @@ function editFromDetail() { showDetail.value = false; openEdit(activeStudent.val
 .muted { color: var(--color-text-muted); font-size: var(--text-sm); }
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-4); padding-top: var(--space-3); }
 .detail-grid p { font-weight: 600; margin-top: var(--space-1); }
+.contract-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.contract-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-divider); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--color-surface-offset) 70%, transparent); }
+.contract-header h3 { margin-top: 2px; font-size: var(--text-lg); }
+.contract-badge { padding: 6px 10px; border-radius: 999px; background: var(--color-primary-highlight); color: var(--color-primary); font-weight: 600; }
+.contract-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.contract-summary { padding: var(--space-3); border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface-offset); color: var(--color-text); }
+.contract-table { border: 1px solid var(--color-divider); border-radius: var(--radius-lg); overflow: hidden; }
+.contract-table-head { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: var(--space-3); background: color-mix(in srgb, var(--color-surface-offset) 85%, transparent); font-weight: 600; color: var(--color-text-muted); }
+.contract-table-empty { padding: var(--space-4); text-align: center; color: var(--color-text-muted); }
 :deep(.p-datatable-tbody > tr) { cursor: pointer; }
 :deep(.p-datatable .p-datatable-thead > tr > th) {
   background: color-mix(in srgb, var(--color-surface-offset) 80%, transparent);
