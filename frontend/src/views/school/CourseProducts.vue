@@ -166,7 +166,7 @@ function serializeRelatedProperties(value) {
 }
 function createDefaultRelatedProperties(courseName = '') {
   return {
-    机构: '咔库编程中心',
+    机构: 'Willook编程中心',
     标题: '价目表',
     课时说明: '1课时=45分钟，1次课=2课时',
     课程分类: [
@@ -192,7 +192,7 @@ function cloneRelatedProperties(value) {
 function normalizeRelatedProperties(value) {
   const source = cloneRelatedProperties(value)
   return {
-    机构: source?.机构 || '咔库编程中心',
+    机构: source?.机构 || 'Willook编程中心',
     标题: source?.标题 || '价目表',
     课时说明: source?.课时说明 || '1课时=45分钟，1次课=2课时',
     课程分类: Array.isArray(source?.课程分类)

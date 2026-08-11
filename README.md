@@ -1,6 +1,6 @@
 # DIY CRM
 
-DIY CRM is a full-stack customer relationship management console for Kaku Education, built with a FastAPI backend and a Vue 3 + PrimeVue frontend.
+DIY CRM is a full-stack customer relationship management console for Willook Education, built with a FastAPI backend and a Vue 3 + PrimeVue frontend.
 
 ## Project structure
 

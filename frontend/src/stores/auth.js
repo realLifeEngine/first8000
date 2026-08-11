@@ -12,8 +12,8 @@ const ROLE_RANK = { teacher: 0, manager: 1, school_admin: 2, superuser: 3 }
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    accessToken: localStorage.getItem('kaku_access_token') || null,
-    refreshToken: localStorage.getItem('kaku_refresh_token') || null,
+    accessToken: localStorage.getItem('willook_access_token') || null,
+    refreshToken: localStorage.getItem('willook_refresh_token') || null,
     user: null, // { id, username, name, role, branchId, permissions[] }
     ready: false, // true once bootstrap() has resolved
   }),
@@ -38,8 +38,8 @@ export const useAuthStore = defineStore('auth', {
       const tokens = await apiLogin(username, password)
       this.accessToken = tokens.access_token
       this.refreshToken = tokens.refresh_token
-      localStorage.setItem('kaku_access_token', tokens.access_token)
-      localStorage.setItem('kaku_refresh_token', tokens.refresh_token)
+      localStorage.setItem('willook_access_token', tokens.access_token)
+      localStorage.setItem('willook_refresh_token', tokens.refresh_token)
       await this.loadProfile()
     },
 
@@ -70,8 +70,8 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = null
       this.refreshToken = null
       this.user = null
-      localStorage.removeItem('kaku_access_token')
-      localStorage.removeItem('kaku_refresh_token')
+      localStorage.removeItem('willook_access_token')
+      localStorage.removeItem('willook_refresh_token')
     },
   },
 })

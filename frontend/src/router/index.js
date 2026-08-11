@@ -4,13 +4,10 @@ const Login = () => import('../views/Login.vue')
 const DashboardLayout = () => import('../views/DashboardLayout.vue')
 const Overview = () => import('../views/Overview.vue')
 const MemberList = () => import('../views/frontdesk/MemberList.vue')
-const BranchManage = () => import('../views/admin/BranchManage.vue')
-const StaffManage = () => import('../views/admin/StaffManage.vue')
 const ClassManage = () => import('../views/school/ClassManage.vue')
 const CourseRecords = () => import('../views/school/CourseRecords.vue')
 const CourseReview = () => import('../views/school/CourseReview.vue')
 const CourseProducts = () => import('../views/school/CourseProducts.vue')
-const CourseIndex = () => import('../views/school/CourseIndex.vue')
 const AttendanceStats = () => import('../views/school/AttendanceStats.vue')
 const PublicField = () => import('../views/school/PublicField.vue')
 const Notices = () => import('../views/oa/Notices.vue')
@@ -29,6 +26,8 @@ const RevenueReport = () => import('../views/datacenter/RevenueReport.vue')
 const Ranking = () => import('../views/datacenter/Ranking.vue')
 const BonusStats = () => import('../views/datacenter/BonusStats.vue')
 const CampusData = () => import('../views/datacenter/CampusData.vue')
+const BranchManage = () => import('../views/admin/BranchManage.vue')
+const StaffManage = () => import('../views/admin/StaffManage.vue')
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -43,7 +42,6 @@ const routes = [
     { path: 'school/course-records', name: 'school-course-records', component: CourseRecords, meta: { crumb: '教务管理 > 教课记录' } },
     { path: 'school/course-review', name: 'school-course-review', component: CourseReview, meta: { crumb: '教务管理 > 消课管理 > 课堂点评' } },
     { path: 'school/course-products', name: 'school-course-products', component: CourseProducts, meta: { crumb: '教务管理 > 课程管理' } },
-    { path: 'school/course-index', name: 'school-course-index', component: CourseIndex, meta: { crumb: '教务管理 > 查阅课程' } },
     { path: 'school/attendance', name: 'school-attendance', component: AttendanceStats, meta: { crumb: '教务管理 > 出勤统计' } },
     { path: 'school/public_field', name: 'school-public-field', component: PublicField, meta: { crumb: '教务管理 > public_field' } },
     { path: 'oa/notices', name: 'oa-notices', component: Notices, meta: { crumb: '办公OA > 内部公文' } },

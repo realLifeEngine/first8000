@@ -1,6 +1,6 @@
-# Kaku CRM API
+# Willook CRM API
 
-FastAPI backend for the "启慧教育" (Kaku Education) CRM console — powers the
+FastAPI backend for the "启慧教育" (Willook Education) CRM console — powers the
 Vue 3 + PrimeVue frontend, replacing its static mock data with a real,
 authenticated, role-scoped API.
 

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This repository contains a FastAPI backend and a Vue 3 + PrimeVue frontend for the Kaku CRM console.
+This repository contains a FastAPI backend and a Vue 3 + PrimeVue frontend for the Willook CRM console.
 
 ## Project layout
 - Backend: [backend/](backend/)
@@ -25,7 +25,6 @@ This repository contains a FastAPI backend and a Vue 3 + PrimeVue frontend for t
 ## Common commands
 - Backend setup:
   - `cd backend && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`
-  - `PYTHONPATH=. python3 scripts/seed.py`
   - `uvicorn main:app --reload`
 - Frontend setup:
   - `cd frontend && npm install`

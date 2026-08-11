@@ -1,4 +1,4 @@
-const THEME_COOKIE_NAME = 'kaku_theme'
+const THEME_COOKIE_NAME = 'willook_theme'
 
 export function getStoredTheme(defaultTheme = 'light') {
   if (typeof document === 'undefined') return defaultTheme

@@ -21,14 +21,14 @@ class Settings(BaseSettings):
     )
 
     # --- App ---
-    APP_NAME: str = "Kaku CRM API"
+    APP_NAME: str = "Willook CRM API"
     APP_ENV: Literal["dev", "staging", "prod"] = "dev"
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api/v1"
 
     # --- Database ---
     # SQLite for local/mock data; swap to postgresql+asyncpg://... in prod via env var.
-    DATABASE_URL: str = "sqlite+aiosqlite:///./kaku_crm.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./willook_crm.db"
     DB_ECHO: bool = False
 
     # --- JWT / Auth ---

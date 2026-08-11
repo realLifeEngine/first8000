@@ -7,19 +7,7 @@ import client from './client'
 import { normalizeListResponse } from './response'
 
 export function listStudents(params = {}) {
-  return client.get('/students', { params: { page_size: 100, ...params } }).then((r) => normalizeListResponse(r.data))
-}
-
-export function listStudentsPage(params = {}) {
-  return client.get('/students', { params }).then((r) => r.data)
-}
-
-export function listStudentClassOptions() {
-  return client.get('/students/class-options').then((r) => r.data)
-}
-
-export function listStudentCounselorOptions() {
-  return client.get('/students/counselor-options').then((r) => r.data)
+  return client.get('/students', { params }).then((r) => normalizeListResponse(r.data))
 }
 
 export function getStudent(id) {
@@ -39,7 +27,7 @@ export function deleteStudent(id) {
 }
 
 export function listPublicFieldStudents(params = {}) {
-  return client.get('/students/public-field', { params: { page_size: 100, ...params } }).then((r) => normalizeListResponse(r.data))
+  return client.get('/students/public-field', { params }).then((r) => normalizeListResponse(r.data))
 }
 
 export function restorePublicFieldStudent(id) {

@@ -1,6 +1,6 @@
 /**
  * src/api/client.js
- * Central Axios instance for the Kaku CRM API. Attaches the JWT access
+ * Central Axios instance for the Willook CRM API. Attaches the JWT access
  * token to every request, and on a 401 response tries a single silent
  * refresh via /auth/refresh before falling back to logging the user out.
  */
@@ -26,7 +26,7 @@ function resolveQueue(error, token = null) {
 }
 
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('kaku_access_token')
+  const token = localStorage.getItem('willook_access_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
@@ -52,7 +52,7 @@ client.interceptors.response.use(
 
     originalRequest._retry = true
     isRefreshing = true
-    const refreshToken = localStorage.getItem('kaku_refresh_token')
+    const refreshToken = localStorage.getItem('willook_refresh_token')
 
     if (!refreshToken) {
       isRefreshing = false
@@ -62,7 +62,7 @@ client.interceptors.response.use(
 
     try {
       const { data } = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, { refresh_token: refreshToken })
-      localStorage.setItem('kaku_access_token', data.access_token)
+      localStorage.setItem('willook_access_token', data.access_token)
       resolveQueue(null, data.access_token)
       originalRequest.headers.Authorization = `Bearer ${data.access_token}`
       return client(originalRequest)
@@ -77,8 +77,8 @@ client.interceptors.response.use(
 )
 
 function forceLogout() {
-  localStorage.removeItem('kaku_access_token')
-  localStorage.removeItem('kaku_refresh_token')
+  localStorage.removeItem('willook_access_token')
+  localStorage.removeItem('willook_refresh_token')
   router.push({ name: 'login' })
 }
 

@@ -84,9 +84,13 @@ const vClickOutside = { mounted(el) {
   el._outsideHandler = (e) => { if (!el.contains(e.target)) showUserMenu.value = false }
   document.addEventListener('click', el._outsideHandler)
 }, unmounted(el) { document.removeEventListener('click', el._outsideHandler) } }
-const nav = [
+const nav = computed(() => [
   { label: '总览', items: [ { to: '/app/overview', label: '仪表盘', icon: LayoutDashboard } ] },
   { label: '前台业务', items: [ { to: '/app/frontdesk/members', label: '会员管理', icon: Users } ] },
+  ...(auth.hasRoleAtLeast('superuser') ? [{ label: '系统管理', items: [
+    { to: '/app/admin/branches', label: '校区管理', icon: Building2 },
+    { to: '/app/admin/staff', label: '员工管理', icon: Users },
+  ] }] : []),
   { label: '教务管理', items: [
     { to: '/app/school/class', label: '班级管理', icon: School },
     { to: '/app/school/course-records', label: '教课记录', icon: ClipboardList },
@@ -116,7 +120,7 @@ const nav = [
     { to: '/app/data/bonus', label: '奖金汇总', icon: Gift },
     { to: '/app/data/campus', label: '校区数据', icon: Building2 },
   ] },
-]
+])
 </script>
 <style scoped>
 .shell { display: flex; min-height: 100dvh; }

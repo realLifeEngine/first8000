@@ -1,4 +1,4 @@
-# Kaku CRM Frontend — Batch 7 Integration
+# Willook CRM Frontend — Batch 7 Integration
 
 This adds real backend integration on top of the existing Vue 3 +
 PrimeVue frontend: Axios API client, Pinia auth store, and router guards

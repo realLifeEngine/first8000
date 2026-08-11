@@ -125,7 +125,7 @@ def build_course_product_seed_rows(branch_id: str) -> list[dict]:
                 "goal": spec["goal"],
                 "branch_id": branch_id,
                 "related_properties": {
-                    "机构": "咔库编程中心",
+                    "机构": "Willook编程中心",
                     "标题": "价目表",
                     "课时说明": "1课时=45分钟，1次课=2课时",
                     "课程分类": [
@@ -301,7 +301,7 @@ async def seed() -> None:
         for u, t in zip(users, TEACHERS):
             db.add(m.Contact(
                 name=u.name, dept=u.dept, role=t["role_title"], phone=u.phone,
-                email=f"{t['username']}@kaku-edu.cn", branch_id=u.branch_id,
+                email=f"{t['username']}@willook-edu.cn", branch_id=u.branch_id,
             ))
 
         # --- Leave Requests ---

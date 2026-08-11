@@ -83,7 +83,7 @@ def _backfill_course_product_related_properties(sync_conn) -> None:
     if "related_properties" not in columns:
         return
     payload = json.dumps({
-        "机构": "咔库编程中心",
+        "机构": "Willook编程中心",
         "标题": "价目表",
         "课时说明": "1课时=45分钟，1次课=2课时",
         "课程分类": []
